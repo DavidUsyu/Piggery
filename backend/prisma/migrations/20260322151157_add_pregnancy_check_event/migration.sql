@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "PigEventType" ADD VALUE 'PREGNANCY_CHECK';

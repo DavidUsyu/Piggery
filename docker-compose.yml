@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: piggery_db
+    environment:
+      POSTGRES_USER: piggery
+      POSTGRES_PASSWORD: piggerypass
+      POSTGRES_DB: piggery_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - piggery_pgdata:/var/lib/postgresql/data
+
+volumes:
+  piggery_pgdata:

@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FarmRole {
+  OWNER
+  MANAGER
+  WORKER
+  VIEWER
+}
+
+model User {
+  id           String  @id @default(uuid())
+  name         String?
+  email        String  @unique
+  passwordHash String
+  isActive     Boolean @default(true)
+
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  deletedAt        DateTime?
+  scheduledPurgeAt DateTime?
+
+  memberships FarmMember[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Farm {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   FarmMember[]
+  pigs      Pig[]
+  pigEvents PigEvent[]
+  pigGroups PigGroup[]
+}
+
+model FarmMember {
+  id        String   @id @default(uuid())
+  farmId    String
+  userId    String
+  role      FarmRole @default(WORKER)
+  createdAt DateTime @default(now())
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, userId])
+}
+
+enum PigSex {
+  MALE
+  FEMALE
+}
+
+enum PigStatus {
+  ACTIVE
+  SOLD
+  DEAD
+  CONSUMED
+}
+
+model Pig {
+  id              String          @id @default(uuid())
+  farmId          String
+  tagNumber       String
+  name            String?
+  sex             PigSex
+  breed           String?
+  birthDate       DateTime?
+  status          PigStatus       @default(ACTIVE)
+  sireId          String?
+  damId           String?
+  pregnancyStatus PregnancyStatus @default(NOT_PREGNANT)
+  pigGroupId      String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  farm     Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  pigGroup PigGroup?  @relation(fields: [pigGroupId], references: [id], onDelete: SetNull)
+  events   PigEvent[]
+
+  @@index([farmId])
+  @@index([pigGroupId])
+}
+
+enum PigEventType {
+  WEIGHT
+  VACCINATION
+  DEWORMING
+  BREEDING
+  PREGNANCY_CHECK
+  FARROWING
+  WEANING
+  ILLNESS
+  TREATMENT
+  SALE
+  DEATH
+  CONSUMED
+  NOTE
+}
+
+enum PregnancyStatus {
+  NOT_PREGNANT
+  PREGNANT
+  RETURNED_TO_HEAT
+}
+
+enum PregnancyCheckResult {
+  PREGNANT
+  RETURNED_TO_HEAT
+}
+
+model PigEvent {
+  id        String       @id @default(uuid())
+  farmId    String
+  pigId     String
+  type      PigEventType
+  eventDate DateTime     @default(now())
+
+  weightKg Float?
+  medicine String?
+  dose     String?
+  cost     Float?
+  notes    String?
+
+  boarId      String?
+  pigletsBorn Int?
+  stillBorn   Int?
+
+  pregnancyCheckResult PregnancyCheckResult?
+
+  createdAt DateTime @default(now())
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  pig  Pig  @relation(fields: [pigId], references: [id], onDelete: Cascade)
+
+  @@index([farmId, pigId])
+  @@index([eventDate])
+}
+
+model PigGroup {
+  id          String   @id @default(uuid())
+  farmId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  farm Farm  @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  pigs Pig[]
+
+  @@unique([farmId, name])
+  @@index([farmId])
+}
