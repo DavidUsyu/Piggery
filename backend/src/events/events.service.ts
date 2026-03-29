@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PigEvent } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateBulkEventDto } from './dto/create-bulk-event.dto';
@@ -6,6 +7,116 @@ import { CreateBulkEventDto } from './dto/create-bulk-event.dto';
 @Injectable()
 export class EventsService {
   constructor(private prisma: PrismaService) {}
+
+  private getExpenseCategoryFromEventType(type: string): 'MEDICINE' | null {
+    if (type === 'VACCINATION') return 'MEDICINE';
+    if (type === 'DEWORMING') return 'MEDICINE';
+    if (type === 'TREATMENT') return 'MEDICINE';
+    return null;
+  }
+
+  private async syncFinanceForEvent(
+    tx: any,
+    farmId: string,
+    event: {
+      id: string;
+      pigId: string;
+      type: string;
+      eventDate: Date;
+      cost: number | null;
+      medicine?: string | null;
+      notes?: string | null;
+    },
+  ) {
+    const existingExpense = await tx.expense.findUnique({
+      where: { eventId: event.id },
+    });
+
+    if (event.type === 'SALE') {
+      const existingSale = await tx.sale.findFirst({
+        where: {
+          farmId,
+          pigId: event.pigId,
+          saleDate: event.eventDate,
+        },
+      });
+
+      if ((event.cost ?? 0) > 0) {
+        if (existingSale) {
+          await tx.sale.update({
+            where: { id: existingSale.id },
+            data: {
+              unitPrice: event.cost,
+              totalAmount: event.cost,
+              notes: event.notes ?? existingSale.notes,
+            },
+          });
+        } else {
+          await tx.sale.create({
+            data: {
+              farmId,
+              pigId: event.pigId,
+              quantity: 1,
+              unitPrice: event.cost!,
+              totalAmount: event.cost!,
+              saleDate: event.eventDate,
+              notes: event.notes ?? 'Auto-created from sale event',
+            },
+          });
+        }
+      }
+
+      if (existingExpense) {
+        await tx.expense.delete({
+          where: { id: existingExpense.id },
+        });
+      }
+
+      return;
+    }
+
+    const expenseCategory = this.getExpenseCategoryFromEventType(event.type);
+
+    if (!expenseCategory || !event.cost || event.cost <= 0) {
+      if (existingExpense) {
+        await tx.expense.delete({
+          where: { id: existingExpense.id },
+        });
+      }
+      return;
+    }
+
+    const description =
+      event.notes ||
+      (event.medicine
+        ? `${event.type} - ${event.medicine}`
+        : `${event.type} event cost`);
+
+    if (existingExpense) {
+      await tx.expense.update({
+        where: { id: existingExpense.id },
+        data: {
+          pigId: event.pigId,
+          category: expenseCategory,
+          amount: event.cost,
+          expenseDate: event.eventDate,
+          description,
+        },
+      });
+    } else {
+      await tx.expense.create({
+        data: {
+          farmId,
+          pigId: event.pigId,
+          eventId: event.id,
+          category: expenseCategory,
+          amount: event.cost,
+          expenseDate: event.eventDate,
+          description,
+        },
+      });
+    }
+  }
 
   create(farmId: string, dto: CreateEventDto) {
     return this.prisma.$transaction(async (tx) => {
@@ -30,9 +141,7 @@ export class EventsService {
       if (dto.type === 'BREEDING') {
         await tx.pig.update({
           where: { id: dto.pigId },
-          data: {
-            pregnancyStatus: 'NOT_PREGNANT',
-          },
+          data: { pregnancyStatus: 'NOT_PREGNANT' },
         });
       }
 
@@ -51,11 +160,18 @@ export class EventsService {
       if (dto.type === 'FARROWING') {
         await tx.pig.update({
           where: { id: dto.pigId },
-          data: {
-            pregnancyStatus: 'NOT_PREGNANT',
-          },
+          data: { pregnancyStatus: 'NOT_PREGNANT' },
         });
       }
+
+      if (dto.type === 'SALE') {
+        await tx.pig.update({
+          where: { id: dto.pigId },
+          data: { status: 'SOLD' },
+        });
+      }
+
+      await this.syncFinanceForEvent(tx, farmId, created);
 
       return created;
     });
@@ -83,9 +199,11 @@ export class EventsService {
 
     const eventDate = dto.eventDate ? new Date(dto.eventDate) : new Date();
 
-    const result = await this.prisma.$transaction(
-      pigIds.map((pigId) =>
-        this.prisma.pigEvent.create({
+    const result = await this.prisma.$transaction(async (tx) => {
+      const createdEvents: PigEvent[] = [];
+
+      for (const pigId of pigIds) {
+        const created = await tx.pigEvent.create({
           data: {
             farmId,
             pigId,
@@ -96,9 +214,14 @@ export class EventsService {
             cost: dto.cost,
             notes: dto.notes,
           },
-        }),
-      ),
-    );
+        });
+
+        await this.syncFinanceForEvent(tx, farmId, created);
+        createdEvents.push(created);
+      }
+
+      return createdEvents;
+    });
 
     return {
       message: `Bulk event created for ${result.length} pigs`,
@@ -146,9 +269,7 @@ export class EventsService {
       if (dto.type === 'BREEDING') {
         await tx.pig.update({
           where: { id: updated.pigId },
-          data: {
-            pregnancyStatus: 'NOT_PREGNANT',
-          },
+          data: { pregnancyStatus: 'NOT_PREGNANT' },
         });
       }
 
@@ -167,11 +288,18 @@ export class EventsService {
       if (dto.type === 'FARROWING') {
         await tx.pig.update({
           where: { id: updated.pigId },
-          data: {
-            pregnancyStatus: 'NOT_PREGNANT',
-          },
+          data: { pregnancyStatus: 'NOT_PREGNANT' },
         });
       }
+
+      if (dto.type === 'SALE') {
+        await tx.pig.update({
+          where: { id: updated.pigId },
+          data: { status: 'SOLD' },
+        });
+      }
+
+      await this.syncFinanceForEvent(tx, farmId, updated);
 
       return updated;
     });
@@ -186,8 +314,39 @@ export class EventsService {
       throw new Error('Event not found');
     }
 
-    return this.prisma.pigEvent.delete({
-      where: { id: eventId },
+    return this.prisma.$transaction(async (tx) => {
+      const linkedExpense = await tx.expense.findUnique({
+        where: { eventId },
+      });
+
+      if (linkedExpense) {
+        await tx.expense.delete({
+          where: { id: linkedExpense.id },
+        });
+      }
+
+      const linkedSale = await tx.sale.findFirst({
+        where: {
+          farmId,
+          pigId: event.pigId,
+          saleDate: event.eventDate,
+        },
+      });
+
+      if (event.type === 'SALE' && linkedSale) {
+        await tx.sale.delete({
+          where: { id: linkedSale.id },
+        });
+
+        await tx.pig.update({
+          where: { id: event.pigId },
+          data: { status: 'ACTIVE' },
+        });
+      }
+
+      return tx.pigEvent.delete({
+        where: { id: eventId },
+      });
     });
   }
 }

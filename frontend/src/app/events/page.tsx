@@ -1,4 +1,75 @@
 "use client";
+const EVENT_COST_CONFIG: Record<
+  string,
+  { showCost: boolean; costLabel: string; placeholder: string }
+> = {
+  VACCINATION: {
+    showCost: true,
+    costLabel: "Vaccination Cost",
+    placeholder: "Enter vaccination cost",
+  },
+  DEWORMING: {
+    showCost: true,
+    costLabel: "Deworming Cost",
+    placeholder: "Enter deworming cost",
+  },
+  TREATMENT: {
+    showCost: true,
+    costLabel: "Treatment Cost",
+    placeholder: "Enter treatment cost",
+  },
+  BREEDING: {
+    showCost: true,
+    costLabel: "Breeding Cost",
+    placeholder: "Enter breeding cost",
+  },
+  SALE: {
+    showCost: true,
+    costLabel: "Sale Amount",
+    placeholder: "Enter selling price",
+  },
+  WEIGHT: {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  },
+  PREGNANCY_CHECK: {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  },
+  FARROWING: {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  },
+  WEANING: {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  },
+  ILLNESS: {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  },
+  DEATH: {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  },
+  CONSUMED: {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  },
+  NOTE: {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  },
+};
+
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -55,6 +126,25 @@ export default function EventsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPigId, setSelectedPigId] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
+
+  // Event creation modal state
+  const [showModal, setShowModal] = useState(false);
+  const [eventForm, setEventForm] = useState({
+    pigId: "",
+    type: "WEIGHT",
+    eventDate: new Date().toISOString().slice(0, 16),
+    weightKg: "",
+    medicine: "",
+    dose: "",
+    cost: "",
+    notes: "",
+  });
+
+  const selectedConfig = EVENT_COST_CONFIG[eventForm.type] ?? {
+    showCost: false,
+    costLabel: "",
+    placeholder: "",
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -113,11 +203,16 @@ export default function EventsPage() {
           <div className="flex flex-wrap gap-3">
             <button
               className="rounded-2xl border px-4 py-2"
+              onClick={() => setShowModal(true)}
+            >
+              Add Event
+            </button>
+            <button
+              className="rounded-2xl border px-4 py-2"
               onClick={() => router.push("/dashboard")}
             >
               Back to Dashboard
             </button>
-
             <button
               className="rounded-2xl border px-4 py-2"
               onClick={() => router.push("/pigs")}
@@ -126,6 +221,102 @@ export default function EventsPage() {
             </button>
           </div>
         </div>
+
+        {/* Event Creation Modal */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+                onClick={() => setShowModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h2 className="text-xl font-semibold mb-4">Add Pig Event</h2>
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  // TODO: Implement event creation logic
+                  setShowModal(false);
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-medium mb-1">Pig</label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={eventForm.pigId}
+                    onChange={e => setEventForm(prev => ({ ...prev, pigId: e.target.value }))}
+                    required
+                  >
+                    <option value="">Select Pig</option>
+                    {pigs.map(pig => (
+                      <option key={pig.id} value={pig.id}>{pig.tagNumber}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Event Type</label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={eventForm.type}
+                    onChange={e => setEventForm(prev => ({ ...prev, type: e.target.value }))}
+                  >
+                    {Object.keys(EVENT_COST_CONFIG).map(type => (
+                      <option key={type} value={type}>{eventLabel(type)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Event Date</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={eventForm.eventDate}
+                    onChange={e => setEventForm(prev => ({ ...prev, eventDate: e.target.value }))}
+                  />
+                </div>
+                {/* Render cost input if needed */}
+                {selectedConfig.showCost && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {selectedConfig.costLabel}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder={selectedConfig.placeholder}
+                      value={eventForm.cost}
+                      onChange={e => setEventForm(prev => ({ ...prev, cost: e.target.value }))}
+                      className="w-full border rounded-lg px-3 py-2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This will automatically sync to Finance.
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Notes</label>
+                  <textarea
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={eventForm.notes}
+                    onChange={e => setEventForm(prev => ({ ...prev, notes: e.target.value }))}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    Save Event
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">

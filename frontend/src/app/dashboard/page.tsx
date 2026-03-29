@@ -253,6 +253,13 @@ export default function DashboardPage() {
           />
 
           <DashboardCard
+            title="Finance"
+            emoji="💰"
+            subtitle="Track sales, expenses, and profit/loss"
+            onClick={() => router.push("/finance")}
+          />
+
+          <DashboardCard
             title="Reports"
             emoji="📊"
             subtitle="Farm summaries, performance, and analytics."

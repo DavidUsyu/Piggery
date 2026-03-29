@@ -48,6 +48,8 @@ model Farm {
   pigs      Pig[]
   pigEvents PigEvent[]
   pigGroups PigGroup[]
+  sales    Sale[]
+  expenses Expense[]
 }
 
 model FarmMember {
@@ -94,6 +96,8 @@ model Pig {
   farm     Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
   pigGroup PigGroup?  @relation(fields: [pigGroupId], references: [id], onDelete: SetNull)
   events   PigEvent[]
+  sales    Sale[]
+  expenses Expense[]
 
   @@index([farmId])
   @@index([pigGroupId])
@@ -149,6 +153,7 @@ model PigEvent {
 
   farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
   pig  Pig  @relation(fields: [pigId], references: [id], onDelete: Cascade)
+  expense Expense?
 
   @@index([farmId, pigId])
   @@index([eventDate])
@@ -167,4 +172,61 @@ model PigGroup {
 
   @@unique([farmId, name])
   @@index([farmId])
+}
+enum ExpenseCategory {
+  FEED
+  MEDICINE
+  TRANSPORT
+  LABOR
+  BREEDING
+  UTILITIES
+  MAINTENANCE
+  PURCHASE
+  OTHER
+}
+
+enum FinanceStatus {
+  PROFIT
+  LOSS
+  BREAK_EVEN
+}
+model Sale {
+  id          String   @id @default(uuid())
+  farmId      String
+  pigId       String?
+  quantity    Int      @default(1)
+  unitPrice   Float
+  totalAmount Float
+  saleDate    DateTime @default(now())
+  buyerName   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  pig  Pig? @relation(fields: [pigId], references: [id], onDelete: SetNull)
+
+  @@index([farmId, saleDate])
+  @@index([pigId])
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  farmId      String
+  pigId       String?
+  eventId     String?         @unique
+  category    ExpenseCategory
+  amount      Float
+  expenseDate DateTime        @default(now())
+  description String?
+  vendor      String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  pig  Pig? @relation(fields: [pigId], references: [id], onDelete: SetNull)
+  event PigEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([farmId, expenseDate])
+  @@index([pigId])
 }

@@ -10,6 +10,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { PigGroupsModule } from './pig-groups/pig-groups.module';
+import { FinanceModule } from './finance/finance.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PigGroupsModule } from './pig-groups/pig-groups.module';
     TasksModule,
     CleanupModule,
     PigGroupsModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
