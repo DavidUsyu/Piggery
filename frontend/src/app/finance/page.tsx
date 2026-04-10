@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
 
@@ -54,6 +54,24 @@ const EXPENSE_CATEGORIES = [
   "OTHER",
 ];
 
+function SummaryCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper?: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-white p-4">
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
+      {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
+    </div>
+  );
+}
+
 export default function FinancePage() {
   const router = useRouter();
 
@@ -97,8 +115,12 @@ export default function FinancePage() {
       setSummary(summaryData);
       setPigs(pigsData);
       setExpenses(expensesData);
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to load finance data");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to load finance data");
+      }
     } finally {
       setLoading(false);
     }
@@ -141,8 +163,12 @@ export default function FinancePage() {
       });
 
       await loadData();
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to create sale");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to create sale");
+      }
     } finally {
       setSubmittingSale(false);
     }
@@ -174,387 +200,526 @@ export default function FinancePage() {
       });
 
       await loadData();
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to create expense");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to create expense");
+      }
     } finally {
       setSubmittingExpense(false);
     }
   }
+
+  const topExpense = useMemo(() => {
+    if (!summary?.expenseBreakdown?.length) return null;
+    return [...summary.expenseBreakdown].sort((a, b) => b.amount - a.amount)[0];
+  }, [summary]);
 
   if (loading) {
     return <div className="p-6">Loading finance...</div>;
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Finance</h1>
-          <p className="text-gray-600">
-            Track revenue, expenses, and overall farm profit.
-          </p>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-sm font-medium text-gray-500">Finance</div>
+              <h1 className="mt-1 text-3xl font-bold text-gray-900">
+                Finance Overview
+              </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Track sales, farm expenses, and profit or loss in one place.
+              </p>
+            </div>
+
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
+
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
+              {error}
+            </div>
+          )}
         </div>
 
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="px-4 py-2 rounded-lg border"
-          type="button"
-        >
-          Back
-        </button>
-      </div>
+        {summary && (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard
+              label="Total Revenue"
+              value={`KES ${summary.totalRevenue.toLocaleString()}`}
+              helper={`${summary.saleCount} sale record${summary.saleCount === 1 ? "" : "s"}`}
+            />
+            <SummaryCard
+              label="Total Expenses"
+              value={`KES ${summary.totalExpenses.toLocaleString()}`}
+              helper={`${summary.expenseCount} expense record${summary.expenseCount === 1 ? "" : "s"}`}
+            />
+            <SummaryCard
+              label="Net Result"
+              value={`KES ${summary.netProfit.toLocaleString()}`}
+              helper={summary.status}
+            />
+            <SummaryCard
+              label="Top Expense"
+              value={topExpense ? topExpense.category : "No data"}
+              helper={
+                topExpense
+                  ? `KES ${topExpense.amount.toLocaleString()}`
+                  : "Record expenses to see this"
+              }
+            />
+          </div>
+        )}
 
-      {error && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-red-700">
-          {error}
+        <div className="grid gap-6 xl:grid-cols-2">
+          <section className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Record Sale</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Save income from pigs sold.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateSale} className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Pig
+                </label>
+                <select
+                  value={saleForm.pigId}
+                  onChange={(e) =>
+                    setSaleForm((prev) => ({ ...prev, pigId: e.target.value }))
+                  }
+                  className="w-full rounded-xl border px-3 py-3 text-gray-900"
+                >
+                  <option value="">Select pig (optional)</option>
+                  {pigs.map((pig) => (
+                    <option key={pig.id} value={pig.id}>
+                      {pig.tagNumber}
+                      {pig.name ? ` - ${pig.name}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Quantity
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={saleForm.quantity}
+                    onChange={(e) =>
+                      setSaleForm((prev) => ({
+                        ...prev,
+                        quantity: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Unit Price
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Enter price"
+                    value={saleForm.unitPrice}
+                    onChange={(e) =>
+                      setSaleForm((prev) => ({
+                        ...prev,
+                        unitPrice: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Sale Date
+                  </label>
+                  <input
+                    type="date"
+                    value={saleForm.saleDate}
+                    onChange={(e) =>
+                      setSaleForm((prev) => ({
+                        ...prev,
+                        saleDate: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Buyer Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter buyer name"
+                    value={saleForm.buyerName}
+                    onChange={(e) =>
+                      setSaleForm((prev) => ({
+                        ...prev,
+                        buyerName: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Notes
+                </label>
+                <textarea
+                  placeholder="Add notes"
+                  value={saleForm.notes}
+                  onChange={(e) =>
+                    setSaleForm((prev) => ({
+                      ...prev,
+                      notes: e.target.value,
+                    }))
+                  }
+                  className="min-h-30 w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                />
+              </div>
+
+              <button
+                className="rounded-xl border px-4 py-3 font-medium text-black disabled:opacity-60"
+                disabled={submittingSale}
+                type="submit"
+              >
+                {submittingSale ? "Saving..." : "Save Sale"}
+              </button>
+            </form>
+          </section>
+
+          <section className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Add Farm Expense
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Record general costs like feed, labor, maintenance, or utilities.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateExpense} className="mt-5 space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Pig
+                </label>
+                <select
+                  value={expenseForm.pigId}
+                  onChange={(e) =>
+                    setExpenseForm((prev) => ({
+                      ...prev,
+                      pigId: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border px-3 py-3 text-gray-900"
+                >
+                  <option value="">Select pig (optional)</option>
+                  {pigs.map((pig) => (
+                    <option key={pig.id} value={pig.id}>
+                      {pig.tagNumber}
+                      {pig.name ? ` - ${pig.name}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Category
+                  </label>
+                  <select
+                    value={expenseForm.category}
+                    onChange={(e) =>
+                      setExpenseForm((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border px-3 py-3 text-gray-900"
+                  >
+                    {EXPENSE_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Amount
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Enter amount"
+                    value={expenseForm.amount}
+                    onChange={(e) =>
+                      setExpenseForm((prev) => ({
+                        ...prev,
+                        amount: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Expense Date
+                  </label>
+                  <input
+                    type="date"
+                    value={expenseForm.expenseDate}
+                    onChange={(e) =>
+                      setExpenseForm((prev) => ({
+                        ...prev,
+                        expenseDate: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Vendor
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter vendor"
+                    value={expenseForm.vendor}
+                    onChange={(e) =>
+                      setExpenseForm((prev) => ({
+                        ...prev,
+                        vendor: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Description
+                </label>
+                <textarea
+                  placeholder="Describe this expense"
+                  value={expenseForm.description}
+                  onChange={(e) =>
+                    setExpenseForm((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  className="min-h-30 w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                />
+              </div>
+
+              <button
+                className="rounded-xl border px-4 py-3 font-medium text-black disabled:opacity-60"
+                disabled={submittingExpense}
+                type="submit"
+              >
+                {submittingExpense ? "Saving..." : "Save Expense"}
+              </button>
+            </form>
+          </section>
         </div>
-      )}
 
-      {summary && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card
-            label="Total Revenue"
-            value={`KES ${summary.totalRevenue.toLocaleString()}`}
-          />
-          <Card
-            label="Total Expenses"
-            value={`KES ${summary.totalExpenses.toLocaleString()}`}
-          />
-          <Card
-            label="Net Result"
-            value={`KES ${summary.netProfit.toLocaleString()}`}
-          />
-          <Card label="Status" value={summary.status} />
-        </div>
-      )}
+        <div className="grid gap-6 xl:grid-cols-2">
+          <section className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Recent Sales
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Latest revenue activity.
+                </p>
+              </div>
+            </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <form
-          onSubmit={handleCreateSale}
-          className="rounded-xl border p-5 space-y-4"
-        >
-          <h2 className="text-xl font-semibold">Record Sale</h2>
-
-          <select
-            value={saleForm.pigId}
-            onChange={(e) =>
-              setSaleForm((prev) => ({ ...prev, pigId: e.target.value }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          >
-            <option value="">Select pig (optional)</option>
-            {pigs.map((pig) => (
-              <option key={pig.id} value={pig.id}>
-                {pig.tagNumber}
-                {pig.name ? ` - ${pig.name}` : ""}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="number"
-            min="1"
-            placeholder="Quantity"
-            value={saleForm.quantity}
-            onChange={(e) =>
-              setSaleForm((prev) => ({
-                ...prev,
-                quantity: Number(e.target.value),
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Unit price"
-            value={saleForm.unitPrice}
-            onChange={(e) =>
-              setSaleForm((prev) => ({
-                ...prev,
-                unitPrice: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-            required
-          />
-
-          <input
-            type="date"
-            value={saleForm.saleDate}
-            onChange={(e) =>
-              setSaleForm((prev) => ({
-                ...prev,
-                saleDate: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <input
-            type="text"
-            placeholder="Buyer name"
-            value={saleForm.buyerName}
-            onChange={(e) =>
-              setSaleForm((prev) => ({
-                ...prev,
-                buyerName: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <textarea
-            placeholder="Notes"
-            value={saleForm.notes}
-            onChange={(e) =>
-              setSaleForm((prev) => ({
-                ...prev,
-                notes: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <button
-            className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-60"
-            disabled={submittingSale}
-            type="submit"
-          >
-            {submittingSale ? "Saving..." : "Save Sale"}
-          </button>
-        </form>
-
-        <form
-          onSubmit={handleCreateExpense}
-          className="rounded-xl border p-5 space-y-4"
-        >
-          <h2 className="text-xl font-semibold">Record Expense</h2>
-
-          <select
-            value={expenseForm.pigId}
-            onChange={(e) =>
-              setExpenseForm((prev) => ({
-                ...prev,
-                pigId: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          >
-            <option value="">Select pig (optional)</option>
-            {pigs.map((pig) => (
-              <option key={pig.id} value={pig.id}>
-                {pig.tagNumber}
-                {pig.name ? ` - ${pig.name}` : ""}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={expenseForm.category}
-            onChange={(e) =>
-              setExpenseForm((prev) => ({
-                ...prev,
-                category: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          >
-            {EXPENSE_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Amount"
-            value={expenseForm.amount}
-            onChange={(e) =>
-              setExpenseForm((prev) => ({
-                ...prev,
-                amount: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-            required
-          />
-
-          <input
-            type="date"
-            value={expenseForm.expenseDate}
-            onChange={(e) =>
-              setExpenseForm((prev) => ({
-                ...prev,
-                expenseDate: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <input
-            type="text"
-            placeholder="Vendor"
-            value={expenseForm.vendor}
-            onChange={(e) =>
-              setExpenseForm((prev) => ({
-                ...prev,
-                vendor: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <textarea
-            placeholder="Description"
-            value={expenseForm.description}
-            onChange={(e) =>
-              setExpenseForm((prev) => ({
-                ...prev,
-                description: e.target.value,
-              }))
-            }
-            className="w-full border rounded-lg px-3 py-2"
-          />
-
-          <button
-            className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-60"
-            disabled={submittingExpense}
-            type="submit"
-          >
-            {submittingExpense ? "Saving..." : "Save Expense"}
-          </button>
-        </form>
-      </div>
-
-      {summary && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border p-5">
-            <h2 className="text-xl font-semibold mb-4">Recent Sales</h2>
-            <div className="space-y-3">
-              {summary.recentSales.length === 0 ? (
-                <p className="text-gray-500">No sales recorded yet.</p>
+            <div className="mt-4 space-y-3">
+              {!summary || summary.recentSales.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-4 text-sm text-gray-500">
+                  No sales recorded yet.
+                </div>
               ) : (
                 summary.recentSales.map((sale) => (
-                  <div key={sale.id} className="border rounded-lg p-3">
-                    <div className="font-medium">
+                  <div key={sale.id} className="rounded-xl border p-4">
+                    <div className="font-semibold text-gray-900">
                       {sale.pig?.tagNumber ?? "General Sale"}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      KES {sale.totalAmount.toLocaleString()} •{" "}
+                    <div className="mt-1 text-sm text-gray-600">
+                      KES {sale.totalAmount.toLocaleString()}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
                       {new Date(sale.saleDate).toLocaleDateString()}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="mt-1 text-sm text-gray-600">
                       Buyer: {sale.buyerName ?? "-"}
                     </div>
                   </div>
                 ))
               )}
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-xl border p-5">
-            <h2 className="text-xl font-semibold mb-4">Expense Breakdown</h2>
-            <div className="space-y-3">
-              {summary.expenseBreakdown.length === 0 ? (
-                <p className="text-gray-500">No expenses recorded yet.</p>
+          <section className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Expense Breakdown
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                See which categories are taking the most money.
+              </p>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {!summary || summary.expenseBreakdown.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-4 text-sm text-gray-500">
+                  No expenses recorded yet.
+                </div>
               ) : (
-                summary.expenseBreakdown.map((item) => (
-                  <div
-                    key={item.category}
-                    className="flex items-center justify-between border rounded-lg p-3"
-                  >
-                    <span>{item.category}</span>
-                    <span className="font-semibold">
-                      KES {item.amount.toLocaleString()}
-                    </span>
-                  </div>
-                ))
+                [...summary.expenseBreakdown]
+                  .sort((a, b) => b.amount - a.amount)
+                  .map((item) => (
+                    <div
+                      key={item.category}
+                      className="flex items-center justify-between rounded-xl border p-4"
+                    >
+                      <span className="font-medium text-gray-900">
+                        {item.category}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-700">
+                        KES {item.amount.toLocaleString()}
+                      </span>
+                    </div>
+                  ))
               )}
             </div>
-          </div>
+          </section>
         </div>
-      )}
 
-      <div className="rounded-xl border p-5">
-        <h2 className="text-xl font-semibold mb-4">All Expenses</h2>
+        <section className="rounded-2xl border bg-white p-5 shadow-sm">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">All Expenses</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Auto-synced event expenses and manual farm expenses.
+            </p>
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="px-3 py-2 text-left">Date</th>
-                <th className="px-3 py-2 text-left">Category</th>
-                <th className="px-3 py-2 text-left">Amount</th>
-                <th className="px-3 py-2 text-left">Pig</th>
-                <th className="px-3 py-2 text-left">Vendor</th>
-                <th className="px-3 py-2 text-left">Description</th>
-                <th className="px-3 py-2 text-left">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-3 py-6 text-center text-gray-500"
-                  >
-                    No expenses recorded yet.
-                  </td>
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-225 w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Date
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Category
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Amount
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Pig
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Vendor
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Description
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Source
+                  </th>
                 </tr>
-              ) : (
-                expenses.map((expense) => (
-                  <tr key={expense.id} className="border-b">
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {new Date(expense.expenseDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {expense.category}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      KES {expense.amount.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {expense.pig?.tagNumber ?? "-"}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {expense.vendor ?? "-"}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {expense.description ?? "-"}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {expense.eventId ? (
-                        <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                          Auto from event
-                        </span>
-                      ) : (
-                        <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                          Manual
-                        </span>
-                      )}
+              </thead>
+              <tbody>
+                {expenses.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-3 py-8 text-center text-gray-500"
+                    >
+                      No expenses recorded yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  expenses.map((expense) => (
+                    <tr key={expense.id} className="border-b align-top">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
+                        {new Date(expense.expenseDate).toLocaleDateString()}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
+                        {expense.category}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
+                        KES {expense.amount.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
+                        {expense.pig?.tagNumber ?? "-"}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
+                        {expense.vendor ?? "-"}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
+                        {expense.description ?? "-"}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        {expense.eventId ? (
+                          <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                            Auto from event
+                          </span>
+                        ) : (
+                          <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                            Manual
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
-    </div>
-  );
-}
-
-function Card({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border p-5">
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className="text-2xl font-bold mt-2">{value}</div>
     </div>
   );
 }

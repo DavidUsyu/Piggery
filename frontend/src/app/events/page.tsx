@@ -1,75 +1,4 @@
 "use client";
-const EVENT_COST_CONFIG: Record<
-  string,
-  { showCost: boolean; costLabel: string; placeholder: string }
-> = {
-  VACCINATION: {
-    showCost: true,
-    costLabel: "Vaccination Cost",
-    placeholder: "Enter vaccination cost",
-  },
-  DEWORMING: {
-    showCost: true,
-    costLabel: "Deworming Cost",
-    placeholder: "Enter deworming cost",
-  },
-  TREATMENT: {
-    showCost: true,
-    costLabel: "Treatment Cost",
-    placeholder: "Enter treatment cost",
-  },
-  BREEDING: {
-    showCost: true,
-    costLabel: "Breeding Cost",
-    placeholder: "Enter breeding cost",
-  },
-  SALE: {
-    showCost: true,
-    costLabel: "Sale Amount",
-    placeholder: "Enter selling price",
-  },
-  WEIGHT: {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  },
-  PREGNANCY_CHECK: {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  },
-  FARROWING: {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  },
-  WEANING: {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  },
-  ILLNESS: {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  },
-  DEATH: {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  },
-  CONSUMED: {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  },
-  NOTE: {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  },
-};
-
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -116,38 +45,77 @@ function eventLabel(type: string) {
   if (type === "DEATH") return "Death";
   if (type === "CONSUMED") return "Consumed";
   if (type === "NOTE") return "Note";
+  if (type === "ILLNESS") return "Illness";
   return type;
+}
+
+const EVENT_TYPES = [
+  "WEIGHT",
+  "VACCINATION",
+  "DEWORMING",
+  "BREEDING",
+  "PREGNANCY_CHECK",
+  "FARROWING",
+  "WEANING",
+  "TREATMENT",
+  "SALE",
+  "DEATH",
+  "CONSUMED",
+  "NOTE",
+];
+
+function SummaryCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper?: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
+      {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border bg-white p-5 shadow-sm">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+        <p className="mt-1 text-sm text-gray-600">{subtitle}</p>
+      </div>
+      <div className="mt-5">{children}</div>
+    </section>
+  );
 }
 
 export default function EventsPage() {
   const router = useRouter();
+
   const [events, setEvents] = useState<PigEvent[]>([]);
   const [pigs, setPigs] = useState<Pig[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPigId, setSelectedPigId] = useState<string>("ALL");
-  const [selectedType, setSelectedType] = useState<string>("ALL");
-
-  // Event creation modal state
-  const [showModal, setShowModal] = useState(false);
-  const [eventForm, setEventForm] = useState({
-    pigId: "",
-    type: "WEIGHT",
-    eventDate: new Date().toISOString().slice(0, 16),
-    weightKg: "",
-    medicine: "",
-    dose: "",
-    cost: "",
-    notes: "",
-  });
-
-  const selectedConfig = EVENT_COST_CONFIG[eventForm.type] ?? {
-    showCost: false,
-    costLabel: "",
-    placeholder: "",
-  };
+  const [selectedPigId, setSelectedPigId] = useState("ALL");
+  const [selectedType, setSelectedType] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+
     if (!token) {
       router.push("/login");
       return;
@@ -155,6 +123,7 @@ export default function EventsPage() {
 
     async function load() {
       try {
+        setLoading(true);
         setError(null);
 
         const [eventsData, pigsData] = await Promise.all([
@@ -165,7 +134,9 @@ export default function EventsPage() {
         setEvents(eventsData);
         setPigs(pigsData);
       } catch (err: any) {
-        setError(err.message ?? "Failed to load events");
+        setError(err?.message ?? "Failed to load events");
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -177,283 +148,247 @@ export default function EventsPage() {
   }, [pigs]);
 
   const filteredEvents = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+
     return events.filter((event) => {
+      const pigTag = pigMap.get(event.pigId)?.toLowerCase() ?? "";
+      const typeLabel = eventLabel(event.type).toLowerCase();
+      const notes = (event.notes ?? "").toLowerCase();
+      const medicine = (event.medicine ?? "").toLowerCase();
+
       const pigMatch = selectedPigId === "ALL" || event.pigId === selectedPigId;
       const typeMatch = selectedType === "ALL" || event.type === selectedType;
-      return pigMatch && typeMatch;
+      const searchMatch =
+        normalizedSearch.length === 0 ||
+        pigTag.includes(normalizedSearch) ||
+        typeLabel.includes(normalizedSearch) ||
+        notes.includes(normalizedSearch) ||
+        medicine.includes(normalizedSearch);
+
+      return pigMatch && typeMatch && searchMatch;
     });
-  }, [events, selectedPigId, selectedType]);
+  }, [events, selectedPigId, selectedType, search, pigMap]);
 
   const totalEvents = events.length;
   const weightEvents = events.filter((e) => e.type === "WEIGHT").length;
   const vaccinationEvents = events.filter((e) => e.type === "VACCINATION").length;
-  const breedingEvents = events.filter((e) => e.type === "BREEDING").length;
+  const treatmentEvents = events.filter((e) => e.type === "TREATMENT").length;
+
+  if (loading) {
+    return <div className="p-6">Loading events...</div>;
+  }
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold">Events</h1>
-            <p className="mt-2 text-sm text-gray-500">
-              Farm-wide event history across all pigs.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              className="rounded-2xl border px-4 py-2"
-              onClick={() => setShowModal(true)}
-            >
-              Add Event
-            </button>
-            <button
-              className="rounded-2xl border px-4 py-2"
-              onClick={() => router.push("/dashboard")}
-            >
-              Back to Dashboard
-            </button>
-            <button
-              className="rounded-2xl border px-4 py-2"
-              onClick={() => router.push("/pigs")}
-            >
-              Go to Pigs
-            </button>
-          </div>
-        </div>
-
-        {/* Event Creation Modal */}
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
-              <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
-                onClick={() => setShowModal(false)}
-                aria-label="Close"
-              >
-                ×
-              </button>
-              <h2 className="text-xl font-semibold mb-4">Add Pig Event</h2>
-              <form
-                onSubmit={e => {
-                  e.preventDefault();
-                  // TODO: Implement event creation logic
-                  setShowModal(false);
-                }}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="block text-sm font-medium mb-1">Pig</label>
-                  <select
-                    className="w-full border rounded-lg px-3 py-2"
-                    value={eventForm.pigId}
-                    onChange={e => setEventForm(prev => ({ ...prev, pigId: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select Pig</option>
-                    {pigs.map(pig => (
-                      <option key={pig.id} value={pig.id}>{pig.tagNumber}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Event Type</label>
-                  <select
-                    className="w-full border rounded-lg px-3 py-2"
-                    value={eventForm.type}
-                    onChange={e => setEventForm(prev => ({ ...prev, type: e.target.value }))}
-                  >
-                    {Object.keys(EVENT_COST_CONFIG).map(type => (
-                      <option key={type} value={type}>{eventLabel(type)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Event Date</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full border rounded-lg px-3 py-2"
-                    value={eventForm.eventDate}
-                    onChange={e => setEventForm(prev => ({ ...prev, eventDate: e.target.value }))}
-                  />
-                </div>
-                {/* Render cost input if needed */}
-                {selectedConfig.showCost && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      {selectedConfig.costLabel}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder={selectedConfig.placeholder}
-                      value={eventForm.cost}
-                      onChange={e => setEventForm(prev => ({ ...prev, cost: e.target.value }))}
-                      className="w-full border rounded-lg px-3 py-2"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      This will automatically sync to Finance.
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium mb-1">Notes</label>
-                  <textarea
-                    className="w-full border rounded-lg px-3 py-2"
-                    value={eventForm.notes}
-                    onChange={e => setEventForm(prev => ({ ...prev, notes: e.target.value }))}
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    Save Event
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border p-5">
-            <div className="text-sm text-gray-500">Total Events</div>
-            <div className="mt-2 text-3xl font-semibold">{totalEvents}</div>
-          </div>
-
-          <div className="rounded-2xl border p-5">
-            <div className="text-sm text-gray-500">Weight Records</div>
-            <div className="mt-2 text-3xl font-semibold">{weightEvents}</div>
-          </div>
-
-          <div className="rounded-2xl border p-5">
-            <div className="text-sm text-gray-500">Vaccinations</div>
-            <div className="mt-2 text-3xl font-semibold">{vaccinationEvents}</div>
-          </div>
-
-          <div className="rounded-2xl border p-5">
-            <div className="text-sm text-gray-500">Breeding Events</div>
-            <div className="mt-2 text-3xl font-semibold">{breedingEvents}</div>
-          </div>
-        </div>
-
-        <section className="rounded-2xl border p-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto max-w-7xl space-y-6 pb-10">
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Activity Timeline</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Filter by pig or event type to review farm activity.
+              <div className="text-sm font-medium text-gray-500">Events</div>
+              <h1 className="mt-1 text-3xl font-bold text-gray-900">
+                Farm Events
+              </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Review farm activity, filter event history, and open pigs that need attention.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <select
-                className="rounded-xl border p-3 text-sm"
-                value={selectedPigId}
-                onChange={(e) => setSelectedPigId(e.target.value)}
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                type="button"
               >
-                <option value="ALL">All Pigs</option>
-                {pigs.map((pig) => (
-                  <option key={pig.id} value={pig.id}>
-                    {pig.tagNumber}
-                  </option>
-                ))}
-              </select>
+                Back to Dashboard
+              </button>
 
-              <select
-                className="rounded-xl border p-3 text-sm"
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
+              <button
+                onClick={() => router.push("/pigs")}
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                type="button"
               >
-                <option value="ALL">All Event Types</option>
-                <option value="WEIGHT">WEIGHT</option>
-                <option value="VACCINATION">VACCINATION</option>
-                <option value="DEWORMING">DEWORMING</option>
-                <option value="BREEDING">BREEDING</option>
-                <option value="PREGNANCY_CHECK">PREGNANCY_CHECK</option>
-                <option value="FARROWING">FARROWING</option>
-                <option value="WEANING">WEANING</option>
-                <option value="TREATMENT">TREATMENT</option>
-                <option value="SALE">SALE</option>
-                <option value="DEATH">DEATH</option>
-                <option value="CONSUMED">CONSUMED</option>
-                <option value="NOTE">NOTE</option>
-              </select>
+                Go to Pigs
+              </button>
             </div>
           </div>
 
-          <div className="mt-5 overflow-x-auto rounded-2xl border">
-            <table className="min-w-[1300px] w-full table-auto text-sm">
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            label="Total Events"
+            value={String(totalEvents)}
+            helper="All recorded farm activity"
+          />
+          <SummaryCard
+            label="Weight Records"
+            value={String(weightEvents)}
+            helper="Growth tracking events"
+          />
+          <SummaryCard
+            label="Vaccinations"
+            value={String(vaccinationEvents)}
+            helper="Health prevention events"
+          />
+          <SummaryCard
+            label="Treatments"
+            value={String(treatmentEvents)}
+            helper="Care and treatment events"
+          />
+        </div>
+
+        <SectionCard
+          title="Filter Events"
+          subtitle="Find events by pig, type, or keyword."
+        >
+          <div className="grid gap-4 lg:grid-cols-3">
+            <input
+              type="text"
+              placeholder="Search by pig, type, medicine, or notes"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
+            />
+
+            <select
+              value={selectedPigId}
+              onChange={(e) => setSelectedPigId(e.target.value)}
+              className="w-full rounded-xl border px-4 py-3 text-gray-900"
+            >
+              <option value="ALL">All Pigs</option>
+              {pigs.map((pig) => (
+                <option key={pig.id} value={pig.id}>
+                  {pig.tagNumber}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="w-full rounded-xl border px-4 py-3 text-gray-900"
+            >
+              <option value="ALL">All Event Types</option>
+              {EVENT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {eventLabel(type)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Event History"
+          subtitle={`${filteredEvents.length} event${filteredEvents.length === 1 ? "" : "s"} found`}
+        >
+          <div className="overflow-x-auto">
+            <table className="min-w-[1100px] w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="min-w-[120px] px-4 py-3 text-left">Pig</th>
-                  <th className="min-w-[180px] px-4 py-3 text-left">Event</th>
-                  <th className="min-w-[160px] px-4 py-3 text-left">Date</th>
-                  <th className="min-w-[420px] px-4 py-3 text-left">Details</th>
-                  <th className="min-w-[120px] px-4 py-3 text-left">Action</th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Pig
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Event
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Date
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Details
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Action
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
                 {filteredEvents.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-gray-500">
+                    <td
+                      colSpan={5}
+                      className="px-3 py-8 text-center text-gray-500"
+                    >
                       No events found for this filter.
                     </td>
                   </tr>
                 ) : (
                   filteredEvents.map((event) => (
                     <tr key={event.id} className="border-b align-top">
-                      <td className="whitespace-nowrap px-4 py-3 font-medium">
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
                         {pigMap.get(event.pigId) ?? event.pigId}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3">
+
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
                         {eventLabel(event.type)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3">
+
+                      <td className="px-3 py-3 whitespace-nowrap text-gray-900">
                         {new Date(event.eventDate).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 text-gray-700">
-                        <div className="space-y-1">
+
+                      <td className="px-3 py-3 text-gray-900">
+                        <div className="flex flex-wrap gap-2">
                           {event.weightKg !== null && (
-                            <div>Weight: {event.weightKg} kg</div>
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Weight: {event.weightKg} kg
+                            </span>
                           )}
 
                           {event.medicine && (
-                            <div>Medicine: {event.medicine}</div>
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Medicine: {event.medicine}
+                            </span>
                           )}
 
-                          {event.dose && <div>Dose: {event.dose}</div>}
+                          {event.dose && (
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Dose: {event.dose}
+                            </span>
+                          )}
 
-                          {event.cost !== null && <div>Cost: {event.cost}</div>}
+                          {event.cost !== null && (
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Cost: KES {event.cost.toLocaleString()}
+                            </span>
+                          )}
 
-                          {event.boarId && <div>Boar ID: {event.boarId}</div>}
+                          {event.boarId && (
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Boar ID: {event.boarId}
+                            </span>
+                          )}
 
                           {event.pigletsBorn !== null && (
-                            <div>Piglets Born: {event.pigletsBorn}</div>
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Piglets Born: {event.pigletsBorn}
+                            </span>
                           )}
 
                           {event.stillBorn !== null && (
-                            <div>Stillborn: {event.stillBorn}</div>
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Stillborn: {event.stillBorn}
+                            </span>
                           )}
 
                           {event.pregnancyCheckResult && (
-                            <div>
-                              Result:{" "}
-                              {pregnancyStatusLabel(event.pregnancyCheckResult)}
-                            </div>
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Result: {pregnancyStatusLabel(event.pregnancyCheckResult)}
+                            </span>
                           )}
 
-                          {event.notes && <div>Notes: {event.notes}</div>}
+                          {event.notes && (
+                            <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                              Notes: {event.notes}
+                            </span>
+                          )}
 
                           {event.weightKg === null &&
                             !event.medicine &&
@@ -463,13 +398,17 @@ export default function EventsPage() {
                             event.pigletsBorn === null &&
                             event.stillBorn === null &&
                             !event.pregnancyCheckResult &&
-                            !event.notes && <div>—</div>}
+                            !event.notes && (
+                              <span className="text-gray-500">—</span>
+                            )}
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3">
+
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <button
-                          className="rounded-xl border px-3 py-2 text-sm"
                           onClick={() => router.push(`/pigs/${event.pigId}`)}
+                          className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                          type="button"
                         >
                           Open Pig
                         </button>
@@ -480,7 +419,7 @@ export default function EventsPage() {
               </tbody>
             </table>
           </div>
-        </section>
+        </SectionCard>
       </div>
     </div>
   );

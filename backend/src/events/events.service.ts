@@ -152,7 +152,9 @@ export class EventsService {
             pregnancyStatus:
               dto.pregnancyCheckResult === 'PREGNANT'
                 ? 'PREGNANT'
-                : 'RETURNED_TO_HEAT',
+                : dto.pregnancyCheckResult === 'RETURNED_TO_HEAT'
+                  ? 'RETURNED_TO_HEAT'
+                  : 'NOT_PREGNANT',
           },
         });
       }
@@ -199,6 +201,15 @@ export class EventsService {
 
     const eventDate = dto.eventDate ? new Date(dto.eventDate) : new Date();
 
+    // IMPORTANT:
+    // In bulk events, the entered cost is treated as TOTAL SHARED COST
+    // for the whole selected group, not cost per pig.
+    const totalSharedCost = dto.cost ?? null;
+    const perPigCost =
+      totalSharedCost && pigIds.length > 0
+        ? Number((totalSharedCost / pigIds.length).toFixed(2))
+        : undefined;
+
     const result = await this.prisma.$transaction(async (tx) => {
       const createdEvents: PigEvent[] = [];
 
@@ -211,8 +222,12 @@ export class EventsService {
             eventDate,
             medicine: dto.medicine,
             dose: dto.dose,
-            cost: dto.cost,
-            notes: dto.notes,
+            cost: perPigCost,
+            notes:
+              dto.notes ||
+              (totalSharedCost
+                ? `Bulk ${dto.type.toLowerCase()} event. Shared total cost KES ${totalSharedCost} across ${pigIds.length} pig(s).`
+                : undefined),
           },
         });
 
@@ -226,6 +241,8 @@ export class EventsService {
     return {
       message: `Bulk event created for ${result.length} pigs`,
       count: result.length,
+      totalSharedCost,
+      perPigCost,
     };
   }
 
@@ -280,7 +297,9 @@ export class EventsService {
             pregnancyStatus:
               dto.pregnancyCheckResult === 'PREGNANT'
                 ? 'PREGNANT'
-                : 'RETURNED_TO_HEAT',
+                : dto.pregnancyCheckResult === 'RETURNED_TO_HEAT'
+                  ? 'RETURNED_TO_HEAT'
+                  : 'NOT_PREGNANT',
           },
         });
       }

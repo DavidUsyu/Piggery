@@ -21,18 +21,86 @@ type MeResponse = {
   role: string | null;
 };
 
+function SummaryCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper?: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
+      {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border bg-white p-5 shadow-sm">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+        <p className="mt-1 text-sm text-gray-600">{subtitle}</p>
+      </div>
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border p-4">
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="mt-1 font-medium text-gray-900">{value}</div>
+    </div>
+  );
+}
+
+function NavCard({
+  title,
+  subtitle,
+  onClick,
+}: {
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+    >
+      <div className="text-lg font-semibold text-gray-900">{title}</div>
+      <div className="mt-1 text-sm text-gray-600">{subtitle}</div>
+    </button>
+  );
+}
+
 export default function FarmSetupPage() {
   const router = useRouter();
 
   const [me, setMe] = useState<MeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   const [ageUnit, setAgeUnit] = useState<AgeUnit>("days");
   const [startPage, setStartPage] = useState<StartPage>("/dashboard");
   const [savedMessage, setSavedMessage] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+
     if (!token) {
       router.push("/login");
       return;
@@ -41,10 +109,8 @@ export default function FarmSetupPage() {
     async function load() {
       try {
         setError(null);
-
         const meData = await apiGet<MeResponse>("/auth/me");
         setMe(meData);
-
         setAgeUnit(getAgeUnit());
         setStartPage(getStartPage());
       } catch (err: any) {
@@ -66,80 +132,108 @@ export default function FarmSetupPage() {
   }
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold">Farm Setup</h1>
-            <p className="mt-2 text-sm text-gray-500">
-              Farm identity, account details, and app preferences.
-            </p>
+    <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto max-w-7xl space-y-6 pb-10">
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-sm font-medium text-gray-500">Farm Setup</div>
+              <h1 className="mt-1 text-3xl font-bold text-gray-900">
+                Farm Setup & Preferences
+              </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Manage account details, app preferences, and quick navigation.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+            >
+              Back to Dashboard
+            </button>
           </div>
 
-          <button
-            className="rounded-2xl border px-4 py-2"
-            onClick={() => router.push("/dashboard")}
-          >
-            Back to Dashboard
-          </button>
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
+              {error}
+            </div>
+          )}
+
+          {savedMessage && (
+            <div className="mt-4 rounded-xl border border-green-300 bg-green-50 p-4 text-green-700">
+              {savedMessage}
+            </div>
+          )}
         </div>
 
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            label="Farm Name"
+            value={me?.farmName ?? "No farm"}
+            helper="Current farm profile"
+          />
+          <SummaryCard
+            label="Role"
+            value={me?.role ?? "-"}
+            helper="Your current access role"
+          />
+          <SummaryCard
+            label="Age Display"
+            value={ageUnit === "days" ? "Days" : "Months"}
+            helper="How pig age is shown"
+          />
+          <SummaryCard
+            label="Start Page"
+            value={startPageLabel(startPage)}
+            helper="Default page after login"
+          />
+        </div>
 
-        {savedMessage && (
-          <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-            {savedMessage}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <section className="rounded-2xl border p-5">
-            <h2 className="text-xl font-semibold">Account</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Basic account and farm information.
-            </p>
-
-            <div className="mt-5 space-y-4">
-              <InfoRow label="Full Name" value={me?.name ?? "Not set"} />
-              <InfoRow label="Email" value={me?.email ?? "—"} />
-              <InfoRow label="Role" value={me?.role ?? "—"} />
-              <InfoRow label="Farm Name" value={me?.farmName ?? "—"} />
-              <InfoRow label="Farm ID" value={me?.farmId ?? "—"} />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SectionCard
+            title="Account"
+            subtitle="Basic account and farm information."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <InfoRow label="Name" value={me?.name ?? "-"} />
+              <InfoRow label="Email" value={me?.email ?? "-"} />
+              <InfoRow label="Farm Name" value={me?.farmName ?? "-"} />
+              <InfoRow label="Role" value={me?.role ?? "-"} />
             </div>
-          </section>
+          </SectionCard>
 
-          <section className="rounded-2xl border p-5">
-            <h2 className="text-xl font-semibold">Preferences</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Set how the app behaves after login and how age is shown.
-            </p>
-
-            <div className="mt-5 space-y-5">
+          <SectionCard
+            title="Preferences"
+            subtitle="Set how the app behaves after login and how age is shown."
+          >
+            <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Age Display</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Age Display
+                </label>
                 <select
-                  className="mt-2 w-full rounded-xl border p-3"
                   value={ageUnit}
                   onChange={(e) => setAgeUnit(e.target.value as AgeUnit)}
+                  className="w-full rounded-xl border px-4 py-3 text-gray-900"
                 >
                   <option value="days">Days</option>
                   <option value="months">Months</option>
                 </select>
-                <div className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500">
                   Used anywhere pig age is shown.
-                </div>
+                </p>
               </div>
 
               <div>
-                <label className="text-sm font-medium">Default Start Page</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Default Start Page
+                </label>
                 <select
-                  className="mt-2 w-full rounded-xl border p-3"
                   value={startPage}
                   onChange={(e) => setStartPage(e.target.value as StartPage)}
+                  className="w-full rounded-xl border px-4 py-3 text-gray-900"
                 >
                   <option value="/dashboard">Dashboard</option>
                   <option value="/pigs">Pigs</option>
@@ -147,80 +241,59 @@ export default function FarmSetupPage() {
                   <option value="/reports">Reports</option>
                   <option value="/pregnant-pigs">Pregnant Pigs</option>
                 </select>
-                <div className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500">
                   After login, the app will open this page first.
-                </div>
+                </p>
               </div>
 
               <button
-                className="w-full rounded-xl bg-black p-3 text-white"
+                type="button"
                 onClick={savePreferences}
+                className="rounded-xl bg-black px-4 py-3 font-medium text-white"
               >
                 Save Preferences
               </button>
             </div>
-          </section>
-
-          <section className="rounded-2xl border p-5 lg:col-span-2">
-            <h2 className="text-xl font-semibold">Quick Navigation</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Jump quickly to key farm sections.
-            </p>
-
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <NavCard
-                title="Pigs"
-                subtitle="Manage all pigs"
-                onClick={() => router.push("/pigs")}
-              />
-              <NavCard
-                title="Pregnant Pigs"
-                subtitle="Countdown and farrowing"
-                onClick={() => router.push("/pregnant-pigs")}
-              />
-              <NavCard
-                title="Tasks"
-                subtitle="Due and overdue reminders"
-                onClick={() => router.push("/tasks")}
-              />
-              <NavCard
-                title="Reports"
-                subtitle="Farm analytics"
-                onClick={() => router.push("/reports")}
-              />
-            </div>
-          </section>
+          </SectionCard>
         </div>
+
+        <SectionCard
+          title="Quick Navigation"
+          subtitle="Jump quickly to key farm sections."
+        >
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <NavCard
+              title="Pigs"
+              subtitle="Open pig management and pig profiles"
+              onClick={() => router.push("/pigs")}
+            />
+            <NavCard
+              title="Pregnant Pigs"
+              subtitle="Track pregnant sows and farrowing countdown"
+              onClick={() => router.push("/pregnant-pigs")}
+            />
+            <NavCard
+              title="Tasks"
+              subtitle="Review due actions and reminders"
+              onClick={() => router.push("/tasks")}
+            />
+            <NavCard
+              title="Reports"
+              subtitle="View farm summaries and trends"
+              onClick={() => router.push("/reports")}
+            />
+          </div>
+        </SectionCard>
       </div>
     </div>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border p-4">
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className="mt-1 break-all text-base font-medium">{value}</div>
-    </div>
-  );
-}
-
-function NavCard({
-  title,
-  subtitle,
-  onClick,
-}: {
-  title: string;
-  subtitle: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="rounded-2xl border p-5 text-left transition hover:bg-white/5"
-    >
-      <div className="text-lg font-semibold">{title}</div>
-      <div className="mt-1 text-sm text-gray-500">{subtitle}</div>
-    </button>
-  );
+function startPageLabel(page: StartPage) {
+  if (page === "/dashboard") return "Dashboard";
+  if (page === "/pigs") return "Pigs";
+  if (page === "/tasks") return "Tasks";
+  if (page === "/reports") return "Reports";
+  if (page === "/pregnant-pigs") return "Pregnant Pigs";
+  return page;
 }

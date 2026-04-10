@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePigDto } from './dto/create-pig.dto';
+import { UpdatePigDto } from './dto/update-pig.dto';
 import { UpdatePigStatusDto } from './dto/update-pig-status.dto';
 
 @Injectable()
@@ -85,6 +86,48 @@ export class PigsService {
     return pig;
   }
 
+  async update(farmId: string, pigId: string, dto: UpdatePigDto) {
+    const pig = await this.prisma.pig.findFirst({
+      where: { id: pigId, farmId },
+    });
+
+    if (!pig) {
+      throw new Error('Pig not found');
+    }
+
+    if (dto.tagNumber && dto.tagNumber !== pig.tagNumber) {
+      const existingTag = await this.prisma.pig.findFirst({
+        where: {
+          farmId,
+          tagNumber: dto.tagNumber,
+          id: { not: pigId },
+        },
+      });
+
+      if (existingTag) {
+        throw new Error('Another pig already uses this tag number');
+      }
+    }
+
+    return this.prisma.pig.update({
+      where: { id: pigId },
+      data: {
+        tagNumber: dto.tagNumber ?? pig.tagNumber,
+        name: dto.name !== undefined ? dto.name : pig.name,
+        sex: (dto.sex as any) ?? pig.sex,
+        breed: dto.breed !== undefined ? dto.breed : pig.breed,
+        birthDate:
+          dto.birthDate !== undefined
+            ? dto.birthDate
+              ? new Date(dto.birthDate)
+              : null
+            : pig.birthDate,
+        sireId: dto.sireId !== undefined ? dto.sireId : pig.sireId,
+        damId: dto.damId !== undefined ? dto.damId : pig.damId,
+      },
+    });
+  }
+
   async updateStatus(
     farmId: string,
     pigId: string,
@@ -156,7 +199,7 @@ export class PigsService {
 
     const lastWeight = pig.events.find((e) => e.type === 'WEIGHT');
 
-    let recommendations: string[] = [];
+    const recommendations: string[] = [];
 
     if (pig.status === 'ACTIVE') {
       if (stage === 'PIGLET') {
@@ -220,6 +263,9 @@ export class PigsService {
     return {
       pigId: pig.id,
       tagNumber: pig.tagNumber,
+      name: pig.name,
+      breed: pig.breed,
+      birthDate: pig.birthDate,
       sex: pig.sex,
       status: pig.status,
       pregnancyStatus: pig.pregnancyStatus,

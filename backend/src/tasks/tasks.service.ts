@@ -60,120 +60,128 @@ export class TasksService {
     };
 
     for (const pig of pigs) {
-      if (!pig.birthDate) continue;
-
       const lastEvent = (type: string) => pig.events.find((e) => e.type === type);
 
-      // 1) WEANING due at day 56
-      if (!lastEvent('WEANING')) {
-        const due = new Date(pig.birthDate);
-        due.setDate(due.getDate() + 56);
+      // ----------------------------------------------------
+      // AGE / BIRTHDATE-BASED TASKS
+      // These should only run if birthDate exists.
+      // ----------------------------------------------------
+      if (pig.birthDate) {
+        // 1) WEANING due at day 56
+        if (!lastEvent('WEANING')) {
+          const due = new Date(pig.birthDate);
+          due.setDate(due.getDate() + 56);
 
-        pushTask({
-          pigId: pig.id,
-          tagNumber: pig.tagNumber,
-          task: 'WEANING',
-          due,
-          reason: 'No WEANING event recorded yet (recommended at ~8 weeks).',
-        });
-      }
+          pushTask({
+            pigId: pig.id,
+            tagNumber: pig.tagNumber,
+            task: 'WEANING',
+            due,
+            reason: 'No WEANING event recorded yet (recommended at ~8 weeks).',
+          });
+        }
 
-      // 2) WEIGHT_CHECK every 14 days
-      const lastWeight = lastEvent('WEIGHT');
-      if (!lastWeight) {
-        pushTask({
-          pigId: pig.id,
-          tagNumber: pig.tagNumber,
-          task: 'WEIGHT_CHECK',
-          due: new Date(),
-          status: 'DUE',
-          reason: 'No WEIGHT recorded yet.',
-        });
-      } else {
-        const due = new Date(lastWeight.eventDate);
-        due.setDate(due.getDate() + 14);
-
-        const daysLeft = this.daysUntil(due);
-        if (daysLeft <= 0) {
+        // 2) WEIGHT_CHECK every 14 days
+        const lastWeight = lastEvent('WEIGHT');
+        if (!lastWeight) {
           pushTask({
             pigId: pig.id,
             tagNumber: pig.tagNumber,
             task: 'WEIGHT_CHECK',
-            due,
-            reason: `Last WEIGHT was on ${lastWeight.eventDate
-              .toISOString()
-              .slice(0, 10)}.`,
+            due: new Date(),
+            status: 'DUE',
+            reason: 'No WEIGHT recorded yet.',
           });
+        } else {
+          const due = new Date(lastWeight.eventDate);
+          due.setDate(due.getDate() + 14);
+
+          const daysLeft = this.daysUntil(due);
+          if (daysLeft <= 0) {
+            pushTask({
+              pigId: pig.id,
+              tagNumber: pig.tagNumber,
+              task: 'WEIGHT_CHECK',
+              due,
+              reason: `Last WEIGHT was on ${lastWeight.eventDate
+                .toISOString()
+                .slice(0, 10)}.`,
+            });
+          }
+        }
+
+        // 3) VACCINATION schedule: sequential at 56, 91, 126 days
+        const vaccinationStages = [
+          { day: 56, label: 'Vaccination 1 (56 days)' },
+          { day: 91, label: 'Vaccination 2 (91 days)' },
+          { day: 126, label: 'Vaccination 3 (126 days)' },
+        ];
+
+        let completedVaccinations = 0;
+
+        for (const stage of vaccinationStages) {
+          const due = new Date(pig.birthDate);
+          due.setDate(due.getDate() + stage.day);
+
+          const alreadyDone = pig.events.some(
+            (e) =>
+              e.type === 'VACCINATION' &&
+              Math.abs(
+                new Date(e.eventDate).getTime() - due.getTime(),
+              ) <=
+                7 * 24 * 60 * 60 * 1000,
+          );
+
+          if (alreadyDone) {
+            completedVaccinations += 1;
+            continue;
+          }
+
+          const daysLeft = this.daysUntil(due);
+
+          const shouldShow =
+            (completedVaccinations === 0 && stage.day === 56) ||
+            (completedVaccinations === 1 && stage.day === 91) ||
+            (completedVaccinations === 2 && stage.day === 126);
+
+          if (shouldShow && daysLeft <= 7) {
+            pushTask({
+              pigId: pig.id,
+              tagNumber: pig.tagNumber,
+              task: 'VACCINATION',
+              due,
+              reason: stage.label,
+            });
+          }
+
+          break;
+        }
+
+        // 4) DEWORMING starter rule: due day 60 if never done
+        if (!lastEvent('DEWORMING')) {
+          const due = new Date(pig.birthDate);
+          due.setDate(due.getDate() + 60);
+
+          const ageDays = Math.floor(
+            (Date.now() - pig.birthDate.getTime()) / 86400000,
+          );
+
+          if (ageDays >= 45) {
+            pushTask({
+              pigId: pig.id,
+              tagNumber: pig.tagNumber,
+              task: 'DEWORMING',
+              due,
+              reason: 'No DEWORMING recorded yet.',
+            });
+          }
         }
       }
 
-      // 3) VACCINATION schedule: sequential at 56, 91, 126 days
-      const vaccinationStages = [
-        { day: 56, label: 'Vaccination 1 (56 days)' },
-        { day: 91, label: 'Vaccination 2 (91 days)' },
-        { day: 126, label: 'Vaccination 3 (126 days)' },
-      ];
-
-      let completedVaccinations = 0;
-
-      for (const stage of vaccinationStages) {
-        const due = new Date(pig.birthDate);
-        due.setDate(due.getDate() + stage.day);
-
-        const alreadyDone = pig.events.some(
-          (e) =>
-            e.type === 'VACCINATION' &&
-            Math.abs(
-              new Date(e.eventDate).getTime() - due.getTime(),
-            ) <= 7 * 24 * 60 * 60 * 1000,
-        );
-
-        if (alreadyDone) {
-          completedVaccinations += 1;
-          continue;
-        }
-
-        const daysLeft = this.daysUntil(due);
-
-        const shouldShow =
-          (completedVaccinations === 0 && stage.day === 56) ||
-          (completedVaccinations === 1 && stage.day === 91) ||
-          (completedVaccinations === 2 && stage.day === 126);
-
-        if (shouldShow && daysLeft <= 7) {
-          pushTask({
-            pigId: pig.id,
-            tagNumber: pig.tagNumber,
-            task: 'VACCINATION',
-            due,
-            reason: stage.label,
-          });
-        }
-
-        break;
-      }
-
-      // 4) DEWORMING starter rule: due day 60 if never done
-      if (!lastEvent('DEWORMING')) {
-        const due = new Date(pig.birthDate);
-        due.setDate(due.getDate() + 60);
-
-        const ageDays = Math.floor(
-          (Date.now() - pig.birthDate.getTime()) / 86400000,
-        );
-
-        if (ageDays >= 45) {
-          pushTask({
-            pigId: pig.id,
-            tagNumber: pig.tagNumber,
-            task: 'DEWORMING',
-            due,
-            reason: 'No DEWORMING recorded yet.',
-          });
-        }
-      }
-
-      // 5) BREEDING FLOW (female pigs only)
+      // ----------------------------------------------------
+      // BREEDING FLOW (female pigs only)
+      // This should run even if birthDate is missing.
+      // ----------------------------------------------------
       if (pig.sex === 'FEMALE') {
         const lastBreeding = pig.events
           .filter((e) => e.type === 'BREEDING')
@@ -202,6 +210,7 @@ export class TasksService {
               new Date(e.eventDate).getTime() >= breedingDate.getTime(),
           );
 
+          // 5a) Pregnancy check due ~21 days after breeding
           if (!pregnancyCheckAfterBreeding) {
             const pregnancyCheckDue = new Date(breedingDate);
             pregnancyCheckDue.setDate(pregnancyCheckDue.getDate() + 21);
@@ -215,7 +224,7 @@ export class TasksService {
                 task: 'PREGNANCY_CHECK',
                 due: pregnancyCheckDue,
                 reason:
-                  'Check whether the sow has returned to heat 21 days after breeding.',
+                  'Check whether the sow has returned to heat about 21 days after breeding.',
               });
             }
           }
@@ -227,18 +236,24 @@ export class TasksService {
           const confirmedPregnant =
             pregnancyCheckAfterBreeding?.pregnancyCheckResult === 'PREGNANT';
 
-          if (returnedToHeat) {
+          // 5b) If she returned to heat, action should be NOW / very soon,
+          // not 21 days later.
+          if (returnedToHeat && pregnancyCheckAfterBreeding) {
+            const rebreedDue = new Date(pregnancyCheckAfterBreeding.eventDate);
+
             pushTask({
               pigId: pig.id,
               tagNumber: pig.tagNumber,
               task: 'REBREED',
-              due: new Date(),
-              status: 'DUE',
+              due: rebreedDue,
+              status:
+                this.daysUntil(rebreedDue) <= 0 ? 'DUE' : undefined,
               reason:
-                'Pig returned to heat after pregnancy check. Record a new breeding event.',
+                'Pig returned to heat after pregnancy check. Check heat signs and breed again now.',
             });
           }
 
+          // 5c) If pregnant and no farrowing yet, show expected farrowing
           if (confirmedPregnant && !farrowingAfterBreeding && !returnedToHeat) {
             const farrowingDue = new Date(breedingDate);
             farrowingDue.setDate(farrowingDue.getDate() + 114);

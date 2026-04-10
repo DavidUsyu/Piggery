@@ -36,37 +36,85 @@ type MeResponse = {
   role: string | null;
 };
 
-type DashboardCardProps = {
+type FinanceSummary = {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  status: "PROFIT" | "LOSS" | "BREAK_EVEN";
+  saleCount: number;
+  expenseCount: number;
+  recentSales: Array<{
+    id: string;
+    totalAmount: number;
+    saleDate: string;
+    buyerName?: string | null;
+    pig?: { tagNumber: string } | null;
+  }>;
+  expenseBreakdown: Array<{
+    category: string;
+    amount: number;
+  }>;
+};
+
+type PigProfit = {
+  pigId: string;
+  tagNumber: string;
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  status: "PROFIT" | "LOSS" | "BREAK_EVEN";
+};
+
+type QuickActionCardProps = {
   title: string;
-  emoji: string;
   subtitle: string;
-  value?: string;
+  emoji: string;
   onClick: () => void;
 };
 
-function DashboardCard({
+type SummaryCardProps = {
+  label: string;
+  value: string;
+  helper?: string;
+};
+
+function SummaryCard({ label, value, helper }: SummaryCardProps) {
+  return (
+    <div className="rounded-2xl border bg-white p-5 shadow-sm">
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
+      {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
+    </div>
+  );
+}
+
+function QuickActionCard({
   title,
-  emoji,
   subtitle,
-  value,
+  emoji,
   onClick,
-}: DashboardCardProps) {
+}: QuickActionCardProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="w-full rounded-3xl border p-6 text-left transition hover:scale-[1.01] hover:bg-white/5"
+      className="rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl border text-4xl shadow-sm">
-        {emoji}
-      </div>
-
-      <div className="mt-6 text-center">
-        <div className="text-2xl font-semibold">{title}</div>
-        <div className="mt-2 text-sm text-gray-500">{subtitle}</div>
-        {value && <div className="mt-3 text-lg font-medium">{value}</div>}
-      </div>
+      <div className="text-3xl">{emoji}</div>
+      <div className="mt-3 text-lg font-semibold text-gray-900">{title}</div>
+      <div className="mt-1 text-sm text-gray-600">{subtitle}</div>
     </button>
   );
+}
+
+function getAlertTone(status: DueTask["status"]) {
+  if (status === "OVERDUE") {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+  if (status === "DUE") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+  return "border-blue-200 bg-blue-50 text-blue-800";
 }
 
 export default function DashboardPage() {
@@ -75,37 +123,124 @@ export default function DashboardPage() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [pigs, setPigs] = useState<Pig[]>([]);
   const [tasks, setTasks] = useState<DueTask[]>([]);
+  const [finance, setFinance] = useState<FinanceSummary | null>(null);
+  const [bestPig, setBestPig] = useState<PigProfit | null>(null);
+  const [worstPig, setWorstPig] = useState<PigProfit | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const activePigs = useMemo(
+    () => pigs.filter((pig) => pig.status === "ACTIVE"),
+    [pigs],
+  );
+
+  const pregnantPigs = useMemo(
+    () =>
+      pigs.filter(
+        (pig) =>
+          pig.status === "ACTIVE" &&
+          pig.sex === "FEMALE" &&
+          pig.pregnancyStatus === "PREGNANT",
+      ),
+    [pigs],
+  );
+
+  const overdueTasks = useMemo(
+    () => tasks.filter((task) => task.status === "OVERDUE"),
+    [tasks],
+  );
+
+  const dueTasks = useMemo(
+    () => tasks.filter((task) => task.status === "DUE"),
+    [tasks],
+  );
+
+  const upcomingTasks = useMemo(
+    () => tasks.filter((task) => task.status === "UPCOMING"),
+    [tasks],
+  );
+
+  const topAlerts = useMemo(() => {
+    return [...tasks]
+      .sort((a, b) => {
+        const priority = { OVERDUE: 0, DUE: 1, UPCOMING: 2 };
+        const statusDiff = priority[a.status] - priority[b.status];
+        if (statusDiff !== 0) return statusDiff;
+        return a.daysLeft - b.daysLeft;
+      })
+      .slice(0, 5);
+  }, [tasks]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+
     if (!token) {
       router.push("/login");
       return;
     }
 
-    async function load() {
+    async function loadDashboard() {
       try {
+        setLoading(true);
         setError(null);
 
-        const [pigsData, tasksData, meData] = await Promise.all([
+        const [pigsData, tasksData, meData, financeData] = await Promise.all([
           apiGet<Pig[]>("/pigs"),
           apiGet<DueTask[]>("/tasks/due"),
           apiGet<MeResponse>("/auth/me"),
+          apiGet<FinanceSummary>("/finance/summary"),
         ]);
 
         setPigs(pigsData);
         setTasks(tasksData);
         setMe(meData);
+        setFinance(financeData);
+
+        const activePigIds = pigsData
+          .filter((pig) => pig.status === "ACTIVE")
+          .map((pig) => pig.id);
+
+        if (activePigIds.length > 0) {
+          const profitResults = await Promise.allSettled(
+            activePigIds.map((pigId) =>
+              apiGet<PigProfit>(`/finance/pig/${pigId}/profit`),
+            ),
+          );
+
+          const successful = profitResults
+            .filter(
+              (
+                result,
+              ): result is PromiseFulfilledResult<PigProfit> =>
+                result.status === "fulfilled",
+            )
+            .map((result) => result.value);
+
+          if (successful.length > 0) {
+            const sorted = [...successful].sort(
+              (a, b) => b.netProfit - a.netProfit,
+            );
+            setBestPig(sorted[0]);
+            setWorstPig(sorted[sorted.length - 1]);
+          } else {
+            setBestPig(null);
+            setWorstPig(null);
+          }
+        } else {
+          setBestPig(null);
+          setWorstPig(null);
+        }
       } catch (err: any) {
-        setError(err.message ?? "Failed to load dashboard");
+        setError(err?.message ?? "Failed to load dashboard");
+      } finally {
+        setLoading(false);
       }
     }
 
-    load();
+    loadDashboard();
   }, [router]);
 
-  function logout() {
+  function handleLogout() {
     localStorage.removeItem("token");
     router.push("/login");
   }
@@ -114,6 +249,7 @@ export default function DashboardPage() {
     const confirmed = window.confirm(
       "Are you sure you want to delete your account? You can recover it within 30 days.",
     );
+
     if (!confirmed) return;
 
     try {
@@ -138,151 +274,352 @@ export default function DashboardPage() {
       localStorage.removeItem("token");
       router.push("/login");
     } catch (err: any) {
-      setError(err.message ?? "Failed to delete account");
+      setError(err?.message ?? "Failed to delete account");
     }
   }
 
-  const activePigs = useMemo(
-    () => pigs.filter((p) => p.status === "ACTIVE"),
-    [pigs],
-  );
-
-  const pregnantPigs = useMemo(
-    () =>
-      pigs.filter(
-        (p) =>
-          p.status === "ACTIVE" &&
-          p.sex === "FEMALE" &&
-          p.pregnancyStatus === "PREGNANT",
-      ),
-    [pigs],
-  );
-
-  const overdueTasks = useMemo(
-    () => tasks.filter((t) => t.status === "OVERDUE").length,
-    [tasks],
-  );
-
-  const dueTasks = useMemo(
-    () => tasks.filter((t) => t.status === "DUE").length,
-    [tasks],
-  );
-
-  const upcomingTasks = useMemo(
-    () => tasks.filter((t) => t.status === "UPCOMING").length,
-    [tasks],
-  );
+  if (loading) {
+    return <div className="p-6">Loading dashboard...</div>;
+  }
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-col gap-4 rounded-2xl border bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">Dashboard</h1>
-
-            {me && (
-              <div className="mt-2 text-sm text-gray-500">
-                {me.name ?? me.email} • {me.farmName ?? "No farm"}
-                {me.role ? ` • ${me.role}` : ""}
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <div className="rounded-2xl border px-4 py-3 text-sm">
-                Active Pigs: <span className="font-semibold">{activePigs.length}</span>
-              </div>
-              <div className="rounded-2xl border px-4 py-3 text-sm">
-                Pregnant: <span className="font-semibold">{pregnantPigs.length}</span>
-              </div>
-              <div className="rounded-2xl border px-4 py-3 text-sm">
-                Overdue Tasks: <span className="font-semibold">{overdueTasks}</span>
-              </div>
-            </div>
+            <div className="text-sm text-gray-500">Dashboard</div>
+            <h1 className="mt-1 text-3xl font-bold text-gray-900">
+              Welcome{me?.name ? `, ${me.name}` : ""}
+            </h1>
+            <p className="mt-2 text-sm text-gray-600">
+              {me?.farmName ?? "No farm"} {me?.role ? `• ${me.role}` : ""}
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <button
-              className="rounded-2xl border px-4 py-2"
-              onClick={() => router.push("/recover-account")}
+              onClick={() => router.push("/forgot-password")}
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
             >
               Recover Account
             </button>
-
-            <button className="rounded-2xl border px-4 py-2" onClick={logout}>
-              Logout
-            </button>
-
             <button
-              className="rounded-2xl border px-4 py-2"
+              onClick={handleLogout}
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+            >
+              Log out
+            </button>
+            <button
+              type="button"
               onClick={deleteAccount}
+              className="rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-600"
             >
               Delete Account
             </button>
           </div>
         </div>
 
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        {error ? (
+          <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-red-700">
             {error}
           </div>
-        )}
+        ) : null}
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <DashboardCard
-            title="Pigs"
-            emoji="🐖"
-            subtitle="Manage pigs, pregnant pigs, and pig groups."
-            value={`${pigs.length} total`}
-            onClick={() => router.push("/pigs")}
-          />
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Farm Snapshot</h2>
+            <p className="text-sm text-gray-600">
+              These cards should tell the farmer what is happening immediately.
+            </p>
+          </div>
 
-          <DashboardCard
-            title="Events"
-            emoji="📅"
-            subtitle="View farm activity, treatments, breeding, and notes."
-            value={pigs.length > 0 ? "Farm activity" : "No pigs yet"}
-            onClick={() => router.push("/events")}
-          />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryCard
+              label="Net Profit"
+              value={`KES ${(finance?.netProfit ?? 0).toLocaleString()}`}
+              helper={finance?.status ?? "No data yet"}
+            />
+            <SummaryCard
+              label="Total Revenue"
+              value={`KES ${(finance?.totalRevenue ?? 0).toLocaleString()}`}
+              helper={`${finance?.saleCount ?? 0} sales recorded`}
+            />
+            <SummaryCard
+              label="Total Expenses"
+              value={`KES ${(finance?.totalExpenses ?? 0).toLocaleString()}`}
+              helper={`${finance?.expenseCount ?? 0} expenses recorded`}
+            />
+            <SummaryCard
+              label="Active Pigs"
+              value={String(activePigs.length)}
+              helper={`${pregnantPigs.length} pregnant`}
+            />
+          </div>
+        </section>
 
-          <DashboardCard
-            title="Tasks"
-            emoji="✅"
-            subtitle="Upcoming reminders for checks, vaccines, and breeding."
-            value={`${overdueTasks} overdue • ${dueTasks} due • ${upcomingTasks} upcoming`}
-            onClick={() => router.push("/tasks")}
-          />
+        <section className="grid gap-6 lg:grid-cols-3">
+          <div className="rounded-2xl border bg-white p-6 shadow-sm lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Alerts & Tasks
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Prioritized by what needs action first.
+                </p>
+              </div>
 
-          <DashboardCard
-            title="Finance"
-            emoji="💰"
-            subtitle="Track sales, expenses, and profit/loss"
-            onClick={() => router.push("/finance")}
-          />
+              <button
+                onClick={() => router.push("/pigs/all")}
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+              >
+                View All
+              </button>
+            </div>
 
-          <DashboardCard
-            title="Reports"
-            emoji="📊"
-            subtitle="Farm summaries, performance, and analytics."
-            value="View insights"
-            onClick={() => router.push("/reports")}
-          />
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border bg-red-50 p-4">
+                <div className="text-sm text-red-700">Overdue</div>
+                <div className="mt-2 text-2xl font-bold text-red-800">
+                  {overdueTasks.length}
+                </div>
+              </div>
+              <div className="rounded-xl border bg-amber-50 p-4">
+                <div className="text-sm text-amber-700">Due now</div>
+                <div className="mt-2 text-2xl font-bold text-amber-800">
+                  {dueTasks.length}
+                </div>
+              </div>
+              <div className="rounded-xl border bg-blue-50 p-4">
+                <div className="text-sm text-blue-700">Upcoming</div>
+                <div className="mt-2 text-2xl font-bold text-blue-800">
+                  {upcomingTasks.length}
+                </div>
+              </div>
+            </div>
 
-          <DashboardCard
-            title="Farm Setup"
-            emoji="🛠️"
-            subtitle="Farm profile, preferences, and system settings."
-            value={me?.farmName ?? "Setup"}
-            onClick={() => router.push("/farm-setup")}
-          />
+            <div className="mt-5 space-y-3">
+              {topAlerts.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-5 text-sm text-gray-500">
+                  No urgent alerts right now.
+                </div>
+              ) : (
+                topAlerts.map((task) => (
+                  <button
+                    key={`${task.pigId}-${task.task}-${task.dueDate}`}
+                    type="button"
+                    onClick={() => router.push(`/pigs/${task.pigId}`)}
+                    className={`w-full rounded-xl border p-4 text-left transition hover:shadow-sm ${getAlertTone(
+                      task.status,
+                    )}`}
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="font-semibold">
+                          {task.tagNumber} • {task.task}
+                        </div>
+                        <div className="mt-1 text-sm">{task.reason}</div>
+                      </div>
+                      <div className="text-sm font-medium">
+                        {task.status === "OVERDUE"
+                          ? `${Math.abs(task.daysLeft)} day(s) overdue`
+                          : task.status === "DUE"
+                            ? "Due today"
+                            : `Due in ${task.daysLeft} day(s)`}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
 
-          <DashboardCard
-            title="Bulk Events"
-            emoji="📦"
-            subtitle="Apply one event to a group or many pigs."
-            value="Group actions"
-            onClick={() => router.push("/bulk-events")}
-          />
-        </div>
+          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-gray-900">Pig Insights</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Quick profitability highlights from your current data.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <div className="rounded-xl border bg-green-50 p-4">
+                <div className="text-sm text-green-700">Most Profitable Pig</div>
+                <div className="mt-2 text-lg font-bold text-green-900">
+                  {bestPig?.tagNumber ?? "No data yet"}
+                </div>
+                <div className="mt-1 text-sm text-green-800">
+                  {bestPig
+                    ? `KES ${bestPig.netProfit.toLocaleString()}`
+                    : "Add sales and expenses to see this"}
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-orange-50 p-4">
+                <div className="text-sm text-orange-700">Least Profitable Pig</div>
+                <div className="mt-2 text-lg font-bold text-orange-900">
+                  {worstPig?.tagNumber ?? "No data yet"}
+                </div>
+                <div className="mt-1 text-sm text-orange-800">
+                  {worstPig
+                    ? `KES ${worstPig.netProfit.toLocaleString()}`
+                    : "Add sales and expenses to see this"}
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Top expense category</div>
+                <div className="mt-2 text-lg font-semibold text-gray-900">
+                  {finance?.expenseBreakdown?.[0]?.category ?? "No data yet"}
+                </div>
+                <div className="mt-1 text-sm text-gray-600">
+                  {finance?.expenseBreakdown?.[0]
+                    ? `KES ${finance.expenseBreakdown[0].amount.toLocaleString()}`
+                    : "Record expenses to see this"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Quick Actions</h2>
+            <p className="text-sm text-gray-600">
+              Use these instead of making the dashboard only a menu.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <QuickActionCard
+              title="Record Treatment"
+              subtitle="Open pigs and treat a pig quickly"
+              emoji="💉"
+              onClick={() => router.push("/pigs")}
+            />
+            <QuickActionCard
+              title="Record Sale"
+              subtitle="Go straight to finance sales"
+              emoji="💰"
+              onClick={() => router.push("/finance")}
+            />
+            <QuickActionCard
+              title="Add Farm Expense"
+              subtitle="Record feed, labor, utilities and more"
+              emoji="🧾"
+              onClick={() => router.push("/finance")}
+            />
+            <QuickActionCard
+              title="View Reports"
+              subtitle="Open charts and farm performance trends"
+              emoji="📊"
+              onClick={() => router.push("/reports")}
+            />
+          </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-2">
+          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Recent Sales
+                </h2>
+                <p className="text-sm text-gray-600">
+                  A quick look at your latest revenue activity.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push("/finance")}
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+              >
+                Open Finance
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {finance?.recentSales?.length ? (
+                finance.recentSales.map((sale) => (
+                  <div key={sale.id} className="rounded-xl border p-4">
+                    <div className="font-semibold text-gray-900">
+                      {sale.pig?.tagNumber ?? "General Sale"}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      Buyer: {sale.buyerName ?? "-"}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {new Date(sale.saleDate).toLocaleDateString()}
+                    </div>
+                    <div className="mt-2 font-semibold text-gray-900">
+                      KES {sale.totalAmount.toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed p-5 text-sm text-gray-500">
+                  No sales recorded yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Useful Pages
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Keep these links, but move them below insight and action.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => router.push("/pigs")}
+                className="rounded-xl border p-4 text-left hover:bg-gray-50"
+              >
+                <div className="font-semibold text-gray-900">Pigs</div>
+                <div className="text-sm text-gray-600">
+                  Manage pigs and open pig details
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/events")}
+                className="rounded-xl border p-4 text-left hover:bg-gray-50"
+              >
+                <div className="font-semibold text-gray-900">Events</div>
+                <div className="text-sm text-gray-600">
+                  Review farm-wide event history
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/farm-setup")}
+                className="rounded-xl border p-4 text-left hover:bg-gray-50"
+              >
+                <div className="font-semibold text-gray-900">Farm Setup</div>
+                <div className="text-sm text-gray-600">
+                  Manage farm information and settings
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/bulk-events")}
+                className="rounded-xl border p-4 text-left hover:bg-gray-50"
+              >
+                <div className="font-semibold text-gray-900">Bulk Events</div>
+                <div className="text-sm text-gray-600">
+                  Record one event for multiple pigs
+                </div>
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

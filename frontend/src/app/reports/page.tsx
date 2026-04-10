@@ -4,273 +4,543 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet } from "@/lib/api";
 import {
-  ResponsiveContainer,
   BarChart,
   Bar,
+  CartesianGrid,
+  LineChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
 } from "recharts";
 
 type Pig = {
   id: string;
   tagNumber: string;
   sex: string;
-  breed: string | null;
-  birthDate: string | null;
   status: string;
   pregnancyStatus: string;
-  expectedFarrowingDate: string | null;
-  farrowingDaysLeft: number | null;
+  birthDate: string | null;
 };
 
-type DueTask = {
+type FinanceSummary = {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  status: "PROFIT" | "LOSS" | "BREAK_EVEN";
+  saleCount: number;
+  expenseCount: number;
+  recentSales: Array<{
+    id: string;
+    totalAmount: number;
+    saleDate: string;
+    buyerName?: string | null;
+    pig?: { tagNumber: string } | null;
+  }>;
+  expenseBreakdown: Array<{
+    category: string;
+    amount: number;
+  }>;
+};
+
+type Expense = {
+  id: string;
+  category: string;
+  amount: number;
+  expenseDate: string;
+};
+
+type PigEvent = {
+  id: string;
   pigId: string;
-  tagNumber: string;
-  task: string;
-  dueDate: string;
-  daysLeft: number;
-  status: "UPCOMING" | "DUE" | "OVERDUE";
-  reason: string;
+  type: string;
+  eventDate: string;
+  weightKg: number | null;
+  cost: number | null;
 };
 
-function formatAgeDays(birthDate: string | null) {
-  if (!birthDate) return null;
-  const birth = new Date(birthDate);
-  return Math.floor((Date.now() - birth.getTime()) / 86400000);
+function SummaryCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: string;
+  helper?: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
+      {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
+    </div>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border bg-white p-5 shadow-sm">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+        <p className="mt-1 text-sm text-gray-600">{subtitle}</p>
+      </div>
+      <div className="mt-5">{children}</div>
+    </section>
+  );
 }
 
 export default function ReportsPage() {
   const router = useRouter();
+
   const [pigs, setPigs] = useState<Pig[]>([]);
-  const [tasks, setTasks] = useState<DueTask[]>([]);
+  const [events, setEvents] = useState<PigEvent[]>([]);
+  const [finance, setFinance] = useState<FinanceSummary | null>(null);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [pigsData, eventsData, financeData, expensesData] =
+        await Promise.all([
+          apiGet<Pig[]>("/pigs"),
+          apiGet<PigEvent[]>("/events"),
+          apiGet<FinanceSummary>("/finance/summary"),
+          apiGet<Expense[]>("/finance/expenses"),
+        ]);
+
+      setPigs(pigsData);
+      setEvents(eventsData);
+      setFinance(financeData);
+      setExpenses(expensesData);
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to load reports");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+
     if (!token) {
       router.push("/login");
       return;
     }
 
-    async function load() {
-      try {
-        const [pigsData, tasksData] = await Promise.all([
-          apiGet<Pig[]>("/pigs"),
-          apiGet<DueTask[]>("/tasks/due"),
-        ]);
-        setPigs(pigsData);
-        setTasks(tasksData);
-      } catch (err: any) {
-        setError(err.message ?? "Failed to load reports");
-      }
-    }
-
-    load();
+    loadData();
   }, [router]);
 
-  const summary = useMemo(() => {
-    return {
-      total: pigs.length,
-      active: pigs.filter((p) => p.status === "ACTIVE").length,
-      sold: pigs.filter((p) => p.status === "SOLD").length,
-      dead: pigs.filter((p) => p.status === "DEAD").length,
-      consumed: pigs.filter((p) => p.status === "CONSUMED").length,
-      pregnant: pigs.filter(
-        (p) =>
-          p.status === "ACTIVE" &&
-          p.sex === "FEMALE" &&
-          p.pregnancyStatus === "PREGNANT",
-      ).length,
-      overdue: tasks.filter((t) => t.status === "OVERDUE").length,
-      due: tasks.filter((t) => t.status === "DUE").length,
-      upcoming: tasks.filter((t) => t.status === "UPCOMING").length,
-    };
-  }, [pigs, tasks]);
+  const activePigs = useMemo(
+    () => pigs.filter((pig) => pig.status === "ACTIVE"),
+    [pigs],
+  );
 
-  const statusChartData = [
-    { name: "Active", value: summary.active },
-    { name: "Sold", value: summary.sold },
-    { name: "Dead", value: summary.dead },
-    { name: "Consumed", value: summary.consumed },
-  ];
+  const femalePigs = useMemo(
+    () => pigs.filter((pig) => pig.sex === "FEMALE"),
+    [pigs],
+  );
 
-  const taskChartData = [
-    { name: "Overdue", value: summary.overdue },
-    { name: "Due", value: summary.due },
-    { name: "Upcoming", value: summary.upcoming },
-  ];
+  const pregnantPigs = useMemo(
+    () =>
+      pigs.filter(
+        (pig) =>
+          pig.sex === "FEMALE" && pig.pregnancyStatus === "PREGNANT",
+      ),
+    [pigs],
+  );
 
-  const sexChartData = [
-    { name: "Female", value: pigs.filter((p) => p.sex === "FEMALE").length },
-    { name: "Male", value: pigs.filter((p) => p.sex === "MALE").length },
-  ];
+  const returnedToHeatPigs = useMemo(
+    () =>
+      pigs.filter(
+        (pig) =>
+          pig.sex === "FEMALE" &&
+          pig.pregnancyStatus === "RETURNED_TO_HEAT",
+      ),
+    [pigs],
+  );
 
-  const breedChartData = Array.from(
-    pigs.reduce((map, pig) => {
-      const breed = pig.breed ?? "Unknown";
-      map.set(breed, (map.get(breed) ?? 0) + 1);
-      return map;
-    }, new Map<string, number>()),
-  ).map(([name, value]) => ({ name, value }));
+  const weightEvents = useMemo(
+    () => events.filter((event) => event.type === "WEIGHT" && event.weightKg !== null),
+    [events],
+  );
 
-  const nearFarrowing = pigs
-    .filter(
-      (p) =>
-        p.status === "ACTIVE" &&
-        p.sex === "FEMALE" &&
-        p.pregnancyStatus === "PREGNANT" &&
-        p.farrowingDaysLeft !== null,
-    )
-    .sort((a, b) => (a.farrowingDaysLeft ?? 9999) - (b.farrowingDaysLeft ?? 9999))
-    .slice(0, 5);
+  const eventTypeChartData = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    for (const event of events) {
+      counts.set(event.type, (counts.get(event.type) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+      .map(([type, count]) => ({
+        name: formatEventType(type),
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [events]);
+
+  const expenseBreakdownData = useMemo(() => {
+    return finance?.expenseBreakdown?.map((item) => ({
+      name: item.category,
+      amount: item.amount,
+    })) ?? [];
+  }, [finance]);
+
+  const monthlyExpenseData = useMemo(() => {
+    const grouped = new Map<string, number>();
+
+    for (const expense of expenses) {
+      const date = new Date(expense.expenseDate);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+        2,
+        "0",
+      )}`;
+
+      grouped.set(key, (grouped.get(key) ?? 0) + expense.amount);
+    }
+
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([month, amount]) => ({
+        month,
+        amount,
+      }));
+  }, [expenses]);
+
+  const weightTrendData = useMemo(() => {
+    const grouped = new Map<string, number[]>();
+
+    for (const event of weightEvents) {
+      const date = new Date(event.eventDate);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+        2,
+        "0",
+      )}`;
+
+      const arr = grouped.get(key) ?? [];
+      arr.push(event.weightKg ?? 0);
+      grouped.set(key, arr);
+    }
+
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([month, weights]) => ({
+        month,
+        avgWeight:
+          weights.length > 0
+            ? Number(
+                (weights.reduce((sum, value) => sum + value, 0) / weights.length).toFixed(1),
+              )
+            : 0,
+      }));
+  }, [weightEvents]);
+
+  const topEventType = useMemo(() => {
+    return eventTypeChartData.length > 0 ? eventTypeChartData[0] : null;
+  }, [eventTypeChartData]);
+
+  if (loading) {
+    return <div className="p-6">Loading reports...</div>;
+  }
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex justify-between">
-          <h1 className="text-3xl font-semibold">Reports</h1>
-          <button
-            className="rounded-2xl border px-4 py-2"
-            onClick={() => router.push("/dashboard")}
+    <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto max-w-7xl space-y-6 pb-10">
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-sm font-medium text-gray-500">Reports</div>
+              <h1 className="mt-1 text-3xl font-bold text-gray-900">
+                Farm Reports
+              </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Review pig performance, farm activity, and financial trends.
+              </p>
+            </div>
+
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
+
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            label="Active Pigs"
+            value={String(activePigs.length)}
+            helper={`${pigs.length} total pigs`}
+          />
+          <SummaryCard
+            label="Pregnant Pigs"
+            value={String(pregnantPigs.length)}
+            helper={`${femalePigs.length} female pigs`}
+          />
+          <SummaryCard
+            label="Net Profit"
+            value={`KES ${(finance?.netProfit ?? 0).toLocaleString()}`}
+            helper={finance?.status ?? "No data"}
+          />
+          <SummaryCard
+            label="Top Event Type"
+            value={topEventType?.name ?? "No data"}
+            helper={
+              topEventType ? `${topEventType.count} record(s)` : "No event data"
+            }
+          />
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SectionCard
+            title="Pig Overview"
+            subtitle="Quick overview of your farm population."
           >
-            Back
-          </button>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">All Pigs</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {pigs.length}
+                </div>
+              </div>
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Female Pigs</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {femalePigs.length}
+                </div>
+              </div>
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Pregnant</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {pregnantPigs.length}
+                </div>
+              </div>
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Returned to Heat</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {returnedToHeatPigs.length}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Finance Snapshot"
+            subtitle="Quick financial summary from your current records."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Revenue</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  KES {(finance?.totalRevenue ?? 0).toLocaleString()}
+                </div>
+              </div>
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Expenses</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  KES {(finance?.totalExpenses ?? 0).toLocaleString()}
+                </div>
+              </div>
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Sales Recorded</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {finance?.saleCount ?? 0}
+                </div>
+              </div>
+              <div className="rounded-xl border p-4">
+                <div className="text-sm text-gray-500">Expenses Recorded</div>
+                <div className="mt-2 text-2xl font-bold text-gray-900">
+                  {finance?.expenseCount ?? 0}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
         </div>
 
-        {error && (
-          <div className="mb-4 text-red-500 text-sm">{error}</div>
-        )}
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SectionCard
+            title="Event Activity"
+            subtitle="See which types of events are most common."
+          >
+            <div className="h-80">
+              {eventTypeChartData.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
+                  No event data yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={eventTypeChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </SectionCard>
 
-        {/* SUMMARY */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card label="Total Pigs" value={summary.total} />
-          <Card label="Active" value={summary.active} />
-          <Card label="Pregnant" value={summary.pregnant} />
-          <Card label="Overdue Tasks" value={summary.overdue} />
+          <SectionCard
+            title="Expense Breakdown"
+            subtitle="Compare farm costs by category."
+          >
+            <div className="h-80">
+              {expenseBreakdownData.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
+                  No expense data yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={expenseBreakdownData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="amount" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </SectionCard>
         </div>
 
-        {/* CHARTS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* Status */}
-          <ChartCard title="Pig Status">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={statusChartData}>
-                <CartesianGrid stroke="#444" strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="#aaa" />
-                <YAxis stroke="#aaa" />
-                <Tooltip />
-                <Bar dataKey="value" fill="#3b82f6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SectionCard
+            title="Monthly Expense Trend"
+            subtitle="Track how expenses change over time."
+          >
+            <div className="h-80">
+              {monthlyExpenseData.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
+                  No monthly expense data yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyExpenseData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="amount" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </SectionCard>
 
-          {/* Tasks */}
-          <ChartCard title="Tasks">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={taskChartData}>
-                <CartesianGrid stroke="#444" strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="#aaa" />
-                <YAxis stroke="#aaa" />
-                <Tooltip />
-                <Bar dataKey="value" fill="#f97316" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          {/* Sex */}
-          <ChartCard title="Sex Distribution">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={sexChartData}>
-                <CartesianGrid stroke="#444" strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="#aaa" />
-                <YAxis stroke="#aaa" />
-                <Tooltip />
-                <Bar dataKey="value" fill="#22c55e" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          {/* Breed */}
-          <ChartCard title="Breed Distribution">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={breedChartData}>
-                <CartesianGrid stroke="#444" strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="#aaa" />
-                <YAxis stroke="#aaa" />
-                <Tooltip />
-                <Bar dataKey="value" fill="#a855f7" />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
+          <SectionCard
+            title="Average Weight Trend"
+            subtitle="Average recorded weight by month."
+          >
+            <div className="h-80">
+              {weightTrendData.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
+                  No weight data yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={weightTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="avgWeight" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </SectionCard>
         </div>
 
-        {/* FARROWING TABLE */}
-        <div className="mt-6 rounded-2xl border p-5">
-          <h2 className="text-xl font-semibold mb-4">
-            Nearest Farrowing
-          </h2>
-
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Tag</th>
-                <th className="text-left py-2">Breed</th>
-                <th className="text-left py-2">Date</th>
-                <th className="text-left py-2">Countdown</th>
-              </tr>
-            </thead>
-            <tbody>
-              {nearFarrowing.map((p) => (
-                <tr key={p.id} className="border-b">
-                  <td className="py-2">{p.tagNumber}</td>
-                  <td>{p.breed ?? "-"}</td>
-                  <td>
-                    {p.expectedFarrowingDate
-                      ? new Date(p.expectedFarrowingDate).toLocaleDateString()
-                      : "-"}
-                  </td>
-                  <td>
-                    {p.farrowingDaysLeft === null
-                      ? "-"
-                      : p.farrowingDaysLeft > 0
-                        ? `${p.farrowingDaysLeft} days`
-                        : "Due"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SectionCard
+          title="Recent Sales"
+          subtitle="Latest sales captured in finance."
+        >
+          {finance?.recentSales?.length ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-[700px] w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                      Pig
+                    </th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                      Amount
+                    </th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                      Date
+                    </th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                      Buyer
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {finance.recentSales.map((sale) => (
+                    <tr key={sale.id} className="border-b">
+                      <td className="px-3 py-3 text-gray-900">
+                        {sale.pig?.tagNumber ?? "General Sale"}
+                      </td>
+                      <td className="px-3 py-3 text-gray-900">
+                        KES {sale.totalAmount.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3 text-gray-900">
+                        {new Date(sale.saleDate).toLocaleDateString()}
+                      </td>
+                      <td className="px-3 py-3 text-gray-900">
+                        {sale.buyerName ?? "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed p-4 text-sm text-gray-500">
+              No recent sales yet.
+            </div>
+          )}
+        </SectionCard>
       </div>
     </div>
   );
 }
 
-/* COMPONENTS */
-
-function Card({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border p-4">
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className="text-2xl font-semibold mt-1">{value}</div>
-    </div>
-  );
-}
-
-function ChartCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border p-5">
-      <h2 className="text-lg font-semibold mb-2">{title}</h2>
-      {children}
-    </div>
-  );
+function formatEventType(type: string) {
+  if (type === "WEIGHT") return "Weight";
+  if (type === "VACCINATION") return "Vaccination";
+  if (type === "DEWORMING") return "Deworming";
+  if (type === "BREEDING") return "Breeding";
+  if (type === "PREGNANCY_CHECK") return "Pregnancy Check";
+  if (type === "FARROWING") return "Farrowing";
+  if (type === "WEANING") return "Weaning";
+  if (type === "TREATMENT") return "Treatment";
+  if (type === "SALE") return "Sale";
+  if (type === "NOTE") return "Note";
+  if (type === "DEATH") return "Death";
+  if (type === "CONSUMED") return "Consumed";
+  return type;
 }
