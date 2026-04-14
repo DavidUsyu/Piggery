@@ -277,6 +277,11 @@ export default function FarmSetupPage() {
               subtitle="Review due actions and reminders"
               onClick={() => router.push("/tasks")}
             />
+              <NavCard
+                title="Feed"
+                subtitle="Manage feed types and stock left"
+                onClick={() => router.push("/feed")}
+              />
             <NavCard
               title="Reports"
               subtitle="View farm summaries and trends"

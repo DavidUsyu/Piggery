@@ -11,6 +11,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { PigGroupsModule } from './pig-groups/pig-groups.module';
 import { FinanceModule } from './finance/finance.module';
+import { FeedModule } from './feed/feed.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { FinanceModule } from './finance/finance.module';
     CleanupModule,
     PigGroupsModule,
     FinanceModule,
+    FeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],

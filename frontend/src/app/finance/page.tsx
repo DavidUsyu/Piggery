@@ -45,6 +45,7 @@ type Expense = {
   } | null;
 };
 
+
 const EXPENSE_CATEGORIES = [
   "FEED",
   "LABOR",
@@ -53,6 +54,18 @@ const EXPENSE_CATEGORIES = [
   "PURCHASE",
   "OTHER",
 ];
+
+function getExpenseSourceLabel(expense: Expense) {
+  if (expense.eventId) return "Auto from event";
+
+  const description = (expense.description ?? "").toLowerCase();
+
+  if (expense.category === "FEED" && description.startsWith("feed purchase -")) {
+    return "Auto from feed purchase";
+  }
+
+  return "Manual";
+}
 
 function SummaryCard({
   label,
@@ -639,7 +652,7 @@ export default function FinancePage() {
           <div>
             <h2 className="text-xl font-semibold text-gray-900">All Expenses</h2>
             <p className="mt-1 text-sm text-gray-600">
-              Auto-synced event expenses and manual farm expenses.
+              Auto-synced event expenses, feed purchase expenses, and manual farm expenses.
             </p>
           </div>
 
@@ -702,15 +715,9 @@ export default function FinancePage() {
                         {expense.description ?? "-"}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
-                        {expense.eventId ? (
-                          <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
-                            Auto from event
-                          </span>
-                        ) : (
-                          <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
-                            Manual
-                          </span>
-                        )}
+                        <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                          {getExpenseSourceLabel(expense)}
+                        </span>
                       </td>
                     </tr>
                   ))

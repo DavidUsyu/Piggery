@@ -44,12 +44,15 @@ model Farm {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members   FarmMember[]
-  pigs      Pig[]
-  pigEvents PigEvent[]
-  pigGroups PigGroup[]
-  sales    Sale[]
-  expenses Expense[]
+  members       FarmMember[]
+  pigs          Pig[]
+  pigEvents     PigEvent[]
+  pigGroups     PigGroup[]
+  sales         Sale[]
+  expenses      Expense[]
+  feedTypes     FeedType[]
+  feedPurchases FeedPurchase[]
+  feedUsages    FeedUsage[]
 }
 
 model FarmMember {
@@ -151,8 +154,8 @@ model PigEvent {
 
   createdAt DateTime @default(now())
 
-  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  pig  Pig  @relation(fields: [pigId], references: [id], onDelete: Cascade)
+  farm    Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  pig     Pig      @relation(fields: [pigId], references: [id], onDelete: Cascade)
   expense Expense?
 
   @@index([farmId, pigId])
@@ -173,6 +176,7 @@ model PigGroup {
   @@unique([farmId, name])
   @@index([farmId])
 }
+
 enum ExpenseCategory {
   FEED
   MEDICINE
@@ -190,6 +194,7 @@ enum FinanceStatus {
   LOSS
   BREAK_EVEN
 }
+
 model Sale {
   id          String   @id @default(uuid())
   farmId      String
@@ -223,10 +228,55 @@ model Expense {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  pig  Pig? @relation(fields: [pigId], references: [id], onDelete: SetNull)
+  farm  Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  pig   Pig?      @relation(fields: [pigId], references: [id], onDelete: SetNull)
   event PigEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([farmId, expenseDate])
   @@index([pigId])
+}
+
+model FeedType {
+  id          String   @id @default(cuid())
+  farmId      String
+  name        String
+  description String?
+  unit        String   @default("kg")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  farm       Farm           @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  purchases  FeedPurchase[]
+  feedUsages FeedUsage[]
+
+  @@unique([farmId, name])
+}
+
+model FeedPurchase {
+  id             String   @id @default(cuid())
+  farmId         String
+  feedTypeId     String
+  quantityBought Decimal
+  quantityLeft   Decimal
+  totalCost      Decimal
+  purchaseDate   DateTime @default(now())
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  farm     Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  feedType FeedType @relation(fields: [feedTypeId], references: [id], onDelete: Cascade)
+}
+
+model FeedUsage {
+  id           String   @id @default(cuid())
+  farmId       String
+  feedTypeId   String
+  quantityUsed Decimal
+  usageDate    DateTime @default(now())
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  farm     Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  feedType FeedType @relation(fields: [feedTypeId], references: [id], onDelete: Cascade)
 }

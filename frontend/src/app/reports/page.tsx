@@ -14,6 +14,82 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
+function exportExcel({ expenses, sales }: any) {
+  const workbook = XLSX.utils.book_new();
+
+  // Expenses sheet
+  const expenseData = expenses.map((e: any) => ({
+    Date: new Date(e.expenseDate).toLocaleDateString(),
+    Category: e.category,
+    Amount: Number(e.amount),
+    Description: e.description || "",
+  }));
+
+  const expenseSheet = XLSX.utils.json_to_sheet(expenseData);
+  XLSX.utils.book_append_sheet(workbook, expenseSheet, "Expenses");
+
+  // Sales sheet
+  const salesData = sales.map((s: any) => ({
+    Date: new Date(s.saleDate).toLocaleDateString(),
+    Quantity: s.quantity,
+    Total: Number(s.totalPrice),
+    Buyer: s.buyerName || "",
+  }));
+
+  const salesSheet = XLSX.utils.json_to_sheet(salesData);
+  XLSX.utils.book_append_sheet(workbook, salesSheet, "Sales");
+
+  // Download
+  const file = XLSX.write(workbook, {
+    bookType: "xlsx",
+    type: "array",
+  });
+
+  saveAs(
+    new Blob([file], { type: "application/octet-stream" }),
+    "farm-report.xlsx"
+  );
+}
+function exportPDF({ expenses, sales }: any) {
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text("Farm Report", 14, 15);
+
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
+
+  // Expenses Table
+  autoTable(doc, {
+    startY: 30,
+    head: [["Date", "Category", "Amount", "Description"]],
+    body: expenses.map((e: any) => [
+      new Date(e.expenseDate).toLocaleDateString(),
+      e.category,
+      `KES ${Number(e.amount).toLocaleString()}`,
+      e.description || "-",
+    ]),
+  });
+
+  // Sales Table
+  autoTable(doc, {
+    startY: doc.lastAutoTable.finalY + 10,
+    head: [["Date", "Quantity", "Total", "Buyer"]],
+    body: sales.map((s: any) => [
+      new Date(s.saleDate).toLocaleDateString(),
+      s.quantity,
+      `KES ${Number(s.totalPrice).toLocaleString()}`,
+      s.buyerName || "-",
+    ]),
+  });
+
+  doc.save("farm-report.pdf");
+}
 
 type Pig = {
   id: string;
@@ -271,6 +347,31 @@ export default function ReportsPage() {
               <p className="mt-2 text-sm text-gray-600">
                 Review pig performance, farm activity, and financial trends.
               </p>
+                <div className="flex flex-wrap items-center gap-3 mt-4">
+                  <button
+                    onClick={() =>
+                      exportPDF({
+                        expenses,
+                        sales: finance?.recentSales ?? [],
+                      })
+                    }
+                    className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                  >
+                    Download PDF
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      exportExcel({
+                        expenses,
+                        sales: finance?.recentSales ?? [],
+                      })
+                    }
+                    className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                  >
+                    Download Excel
+                  </button>
+                </div>
             </div>
 
             <button
