@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost, hasClientAuthState } from "@/lib/api";
 
 type Pig = {
   id: string;
@@ -74,9 +74,7 @@ export default function PigGroupsPage() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }
@@ -218,7 +216,7 @@ export default function PigGroupsPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => router.push("/pigs")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
                 type="button"
               >
                 Back to Pigs
@@ -226,7 +224,7 @@ export default function PigGroupsPage() {
 
               <button
                 onClick={() => router.push("/dashboard")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
                 type="button"
               >
                 Dashboard
@@ -458,14 +456,14 @@ export default function PigGroupsPage() {
                               <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-2">
                                   <button
-                                    className="rounded-xl border px-3 py-2 text-sm font-medium text-gray-900"
+                                    className="rounded-xl border px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-100"
                                     onClick={() => router.push(`/pigs/${pig.id}`)}
                                     type="button"
                                   >
                                     Open
                                   </button>
                                   <button
-                                    className="rounded-xl border px-3 py-2 text-sm font-medium text-gray-900"
+                                    className="rounded-xl border px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-100"
                                     onClick={() =>
                                       removePigFromGroup(group.id, pig.id)
                                     }

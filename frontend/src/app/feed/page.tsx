@@ -2,11 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, hasClientAuthState } from "@/lib/api";
 
-/* =========================
-   HELPERS
-========================= */
 function formatNumber(value: string | number) {
   const num = Number(value);
   if (isNaN(num)) return "0";
@@ -14,9 +11,6 @@ function formatNumber(value: string | number) {
   return num.toFixed(2).replace(/\.?0+$/, "");
 }
 
-/* =========================
-   TYPES
-========================= */
 type FeedType = {
   id: string;
   name: string;
@@ -32,9 +26,6 @@ type FeedPurchase = {
   feedType: FeedType;
 };
 
-/* =========================
-   UI COMPONENTS
-========================= */
 function SectionCard({
   title,
   subtitle,
@@ -68,16 +59,11 @@ function SummaryCard({
     <div className="rounded-2xl border bg-white p-4 shadow-sm">
       <div className="text-sm text-gray-500">{label}</div>
       <div className="mt-2 text-2xl font-bold text-gray-900">{value}</div>
-      {helper && (
-        <div className="mt-1 text-xs text-gray-500">{helper}</div>
-      )}
+      {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
     </div>
   );
 }
 
-/* =========================
-   MAIN COMPONENT
-========================= */
 export default function FeedPage() {
   const router = useRouter();
 
@@ -104,33 +90,33 @@ export default function FeedPage() {
     quantityUsed: "",
   });
 
-  /* =========================
-     LOAD DATA
-  ========================= */
   async function loadData() {
     try {
       setLoading(true);
-      const [types, purchases] = await Promise.all([
+      setError(null);
+
+      const [types, purchasesData] = await Promise.all([
         apiGet<FeedType[]>("/feed/types"),
         apiGet<FeedPurchase[]>("/feed/purchases"),
       ]);
 
       setFeedTypes(types);
-      setPurchases(purchases);
+      setPurchases(purchasesData);
     } catch (err: any) {
-      setError(err.message || "Failed to load data");
+      setError(err.message || "Failed to load feed data");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
+    if (!hasClientAuthState()) {
+      router.push("/login");
+      return;
+    }
     loadData();
-  }, []);
+  }, [router]);
 
-  /* =========================
-     ACTIONS
-  ========================= */
   async function createFeedType(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -138,12 +124,11 @@ export default function FeedPage() {
 
     try {
       await apiPost("/feed/types", feedTypeForm);
-
       setFeedTypeForm({ name: "", unit: "kg" });
-      setMessage("Feed type created");
-      loadData();
+      setMessage("Feed type created successfully.");
+      await loadData();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message ?? "Failed to create feed type");
     }
   }
 
@@ -165,10 +150,10 @@ export default function FeedPage() {
         totalCost: "",
       });
 
-      setMessage("Feed purchase added");
-      loadData();
+      setMessage("Feed purchase added successfully.");
+      await loadData();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message ?? "Failed to add feed purchase");
     }
   }
 
@@ -188,16 +173,13 @@ export default function FeedPage() {
         quantityUsed: "",
       });
 
-      setMessage("Feed usage recorded");
-      loadData();
+      setMessage("Feed usage recorded successfully.");
+      await loadData();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message ?? "Failed to record feed usage");
     }
   }
 
-  /* =========================
-     COMPUTED
-  ========================= */
   const totalStock = useMemo(() => {
     const map = new Map<string, number>();
 
@@ -219,14 +201,10 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto max-w-7xl space-y-6 pb-10">
-
-        {/* HEADER */}
         <div className="rounded-2xl border bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Feed Inventory
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-900">Feed Inventory</h1>
               <p className="mt-1 text-sm text-gray-600">
                 Manage feed stock and usage on your farm
               </p>
@@ -235,89 +213,151 @@ export default function FeedPage() {
             <button
               onClick={() => router.push("/dashboard")}
               className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+              type="button"
             >
               Back to Dashboard
             </button>
           </div>
 
-          {error && (
-            <div className="mt-4 text-sm text-red-600">{error}</div>
-          )}
-          {message && (
-            <div className="mt-4 text-sm text-green-600">{message}</div>
-          )}
+          {error ? (
+            <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
+              {error}
+            </div>
+          ) : null}
+
+          {message ? (
+            <div className="mt-4 rounded-xl border border-green-300 bg-green-50 p-4 text-green-700">
+              {message}
+            </div>
+          ) : null}
         </div>
 
-        {/* SUMMARY */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <SummaryCard
-            label="Feed Types"
-            value={String(feedTypes.length)}
-          />
-          <SummaryCard
-            label="Stock Entries"
-            value={String(purchases.length)}
-          />
-          <SummaryCard
-            label="Total Stock"
-            value={totalStock || "0"}
-          />
+          <SummaryCard label="Feed Types" value={String(feedTypes.length)} />
+          <SummaryCard label="Stock Entries" value={String(purchases.length)} />
+          <SummaryCard label="Total Stock" value={totalStock || "0"} />
         </div>
 
-        {/* FORMS */}
         <div className="grid gap-6 xl:grid-cols-2">
-
-          {/* FEED TYPE */}
           <SectionCard
             title="Add Feed Type"
             subtitle="Create your own feed names"
           >
-            <form onSubmit={createFeedType} className="space-y-4">
-              <input
-                placeholder="Feed name"
-                value={feedTypeForm.name}
-                onChange={(e) =>
-                  setFeedTypeForm({
-                    ...feedTypeForm,
-                    name: e.target.value,
-                  })
-                }
-                className="w-full rounded-xl border px-4 py-3 text-gray-900"
-                required
-              />
+            <div data-tour="feed-add-type-section">
+              <form onSubmit={createFeedType} className="space-y-4">
+                <input
+                  placeholder="Feed name"
+                  value={feedTypeForm.name}
+                  onChange={(e) =>
+                    setFeedTypeForm({
+                      ...feedTypeForm,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                  required
+                />
 
-              <select
-                value={feedTypeForm.unit}
-                onChange={(e) =>
-                  setFeedTypeForm({
-                    ...feedTypeForm,
-                    unit: e.target.value,
-                  })
-                }
-                className="w-full rounded-xl border px-4 py-3 text-gray-900"
-              >
-                <option value="kg">kg</option>
-                <option value="bags">bags</option>
-                <option value="sacks">sacks</option>
-              </select>
+                <select
+                  value={feedTypeForm.unit}
+                  onChange={(e) =>
+                    setFeedTypeForm({
+                      ...feedTypeForm,
+                      unit: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                >
+                  <option value="kg">kg</option>
+                  <option value="bags">bags</option>
+                  <option value="sacks">sacks</option>
+                </select>
 
-              <button className="rounded-xl bg-black px-4 py-3 font-medium text-white">
-                Save Feed Type
-              </button>
-            </form>
+                <button
+                  className="rounded-xl bg-black px-4 py-3 font-medium text-white"
+                  type="submit"
+                >
+                  Save Feed Type
+                </button>
+              </form>
+            </div>
           </SectionCard>
 
-          {/* PURCHASE */}
           <SectionCard
             title="Add Feed Purchase"
             subtitle="Add new stock"
           >
-            <form onSubmit={createPurchase} className="space-y-4">
+            <div data-tour="feed-purchase-section">
+              <form onSubmit={createPurchase} className="space-y-4">
+                <select
+                  value={purchaseForm.feedTypeId}
+                  onChange={(e) =>
+                    setPurchaseForm({
+                      ...purchaseForm,
+                      feedTypeId: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                  required
+                >
+                  <option value="">Select feed</option>
+                  {feedTypes.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({f.unit})
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="number"
+                  placeholder="Quantity bought"
+                  value={purchaseForm.quantityBought}
+                  onChange={(e) =>
+                    setPurchaseForm({
+                      ...purchaseForm,
+                      quantityBought: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                  required
+                />
+
+                <input
+                  type="number"
+                  placeholder="Total cost"
+                  value={purchaseForm.totalCost}
+                  onChange={(e) =>
+                    setPurchaseForm({
+                      ...purchaseForm,
+                      totalCost: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                  required
+                />
+
+                <button
+                  className="rounded-xl bg-black px-4 py-3 font-medium text-white"
+                  type="submit"
+                >
+                  Save Purchase
+                </button>
+              </form>
+            </div>
+          </SectionCard>
+        </div>
+
+        <SectionCard
+          title="Record Feed Usage"
+          subtitle="Deduct feed from stock"
+        >
+          <div data-tour="feed-usage-section">
+            <form onSubmit={recordUsage} className="space-y-4">
               <select
-                value={purchaseForm.feedTypeId}
+                value={usageForm.feedTypeId}
                 onChange={(e) =>
-                  setPurchaseForm({
-                    ...purchaseForm,
+                  setUsageForm({
+                    ...usageForm,
                     feedTypeId: e.target.value,
                   })
                 }
@@ -334,85 +374,28 @@ export default function FeedPage() {
 
               <input
                 type="number"
-                placeholder="Quantity bought"
-                value={purchaseForm.quantityBought}
+                placeholder="Quantity used"
+                value={usageForm.quantityUsed}
                 onChange={(e) =>
-                  setPurchaseForm({
-                    ...purchaseForm,
-                    quantityBought: e.target.value,
+                  setUsageForm({
+                    ...usageForm,
+                    quantityUsed: e.target.value,
                   })
                 }
                 className="w-full rounded-xl border px-4 py-3 text-gray-900"
                 required
               />
 
-              <input
-                type="number"
-                placeholder="Total cost"
-                value={purchaseForm.totalCost}
-                onChange={(e) =>
-                  setPurchaseForm({
-                    ...purchaseForm,
-                    totalCost: e.target.value,
-                  })
-                }
-                className="w-full rounded-xl border px-4 py-3 text-gray-900"
-                required
-              />
-
-              <button className="rounded-xl bg-black px-4 py-3 font-medium text-white">
-                Save Purchase
+              <button
+                className="rounded-xl bg-black px-4 py-3 font-medium text-white"
+                type="submit"
+              >
+                Record Usage
               </button>
             </form>
-          </SectionCard>
-        </div>
-
-        {/* USAGE */}
-        <SectionCard
-          title="Record Feed Usage"
-          subtitle="Deduct feed from stock"
-        >
-          <form onSubmit={recordUsage} className="space-y-4">
-            <select
-              value={usageForm.feedTypeId}
-              onChange={(e) =>
-                setUsageForm({
-                  ...usageForm,
-                  feedTypeId: e.target.value,
-                })
-              }
-              className="w-full rounded-xl border px-4 py-3 text-gray-900"
-              required
-            >
-              <option value="">Select feed</option>
-              {feedTypes.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} ({f.unit})
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="number"
-              placeholder="Quantity used"
-              value={usageForm.quantityUsed}
-              onChange={(e) =>
-                setUsageForm({
-                  ...usageForm,
-                  quantityUsed: e.target.value,
-                })
-              }
-              className="w-full rounded-xl border px-4 py-3 text-gray-900"
-              required
-            />
-
-            <button className="rounded-xl bg-black px-4 py-3 font-medium text-white">
-              Record Usage
-            </button>
-          </form>
+          </div>
         </SectionCard>
 
-        {/* TABLE */}
         <SectionCard
           title="Current Feed Stock"
           subtitle="View your inventory"

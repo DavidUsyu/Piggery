@@ -34,6 +34,8 @@ function AuthCard({
 
 export default function RegisterPage() {
   const router = useRouter();
+  const passwordRule =
+    "Use at least 8 characters, including uppercase, lowercase, and a number.";
 
   const [form, setForm] = useState({
     name: "",
@@ -50,6 +52,12 @@ export default function RegisterPage() {
     setError(null);
     setMessage("");
     setLoading(true);
+
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(form.password)) {
+      setError(passwordRule);
+      setLoading(false);
+      return;
+    }
 
     try {
       await apiPost<RegisterResponse>("/auth/register", {
@@ -169,6 +177,7 @@ export default function RegisterPage() {
                     className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
                     placeholder="Create a password"
                   />
+                  <p className="mt-1 text-xs text-gray-500">{passwordRule}</p>
                 </div>
 
                 <div>

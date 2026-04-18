@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '../auth/auth.jwt.guard';
+import { FARM_ADMIN_ROLES, Roles } from '../auth/roles.decorator';
 import { FinanceService } from './finance.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -37,6 +38,7 @@ export class FinanceController {
   }
 
   @Post('sales')
+  @Roles(...FARM_ADMIN_ROLES)
   createSale(@Req() req: any, @Body() dto: CreateSaleDto) {
     return this.financeService.createSale(req.user.farmId, dto);
   }
@@ -47,6 +49,7 @@ export class FinanceController {
   }
 
   @Patch('sales/:saleId')
+  @Roles(...FARM_ADMIN_ROLES)
   updateSale(
     @Req() req: any,
     @Param('saleId') saleId: string,
@@ -56,11 +59,13 @@ export class FinanceController {
   }
 
   @Delete('sales/:saleId')
+  @Roles(...FARM_ADMIN_ROLES)
   deleteSale(@Req() req: any, @Param('saleId') saleId: string) {
     return this.financeService.deleteSale(req.user.farmId, saleId);
   }
 
   @Post('expenses')
+  @Roles(...FARM_ADMIN_ROLES)
   createExpense(@Req() req: any, @Body() dto: CreateExpenseDto) {
     return this.financeService.createExpense(req.user.farmId, dto);
   }
@@ -71,6 +76,7 @@ export class FinanceController {
   }
 
   @Patch('expenses/:expenseId')
+  @Roles(...FARM_ADMIN_ROLES)
   updateExpense(
     @Req() req: any,
     @Param('expenseId') expenseId: string,
@@ -80,6 +86,7 @@ export class FinanceController {
   }
 
   @Delete('expenses/:expenseId')
+  @Roles(...FARM_ADMIN_ROLES)
   deleteExpense(@Req() req: any, @Param('expenseId') expenseId: string) {
     return this.financeService.deleteExpense(req.user.farmId, expenseId);
   }

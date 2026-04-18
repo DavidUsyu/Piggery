@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { apiGet } from "@/lib/api";
+import { apiGet, hasClientAuthState } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 type Pig = {
@@ -85,9 +85,7 @@ export default function PregnantPigsPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }
@@ -174,7 +172,7 @@ export default function PregnantPigsPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => router.push("/pigs")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
                 type="button"
               >
                 Back to Pigs
@@ -182,7 +180,7 @@ export default function PregnantPigsPage() {
 
               <button
                 onClick={() => router.push("/dashboard")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
                 type="button"
               >
                 Dashboard
@@ -198,32 +196,13 @@ export default function PregnantPigsPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard
-            label="Pregnant Pigs"
-            value={String(pigs.length)}
-            helper="Active female pigs marked pregnant"
-          />
-          <SummaryCard
-            label="Due Soon"
-            value={String(dueSoonCount)}
-            helper="Expected farrowing within 7 days"
-          />
-          <SummaryCard
-            label="Overdue"
-            value={String(overdueCount)}
-            helper="Expected farrowing date already passed"
-          />
-          <SummaryCard
-            label="With Expected Date"
-            value={String(withExpectedDateCount)}
-            helper="Pregnant pigs with farrowing date recorded"
-          />
+          <SummaryCard label="Pregnant Pigs" value={String(pigs.length)} helper="Active female pigs marked pregnant" />
+          <SummaryCard label="Due Soon" value={String(dueSoonCount)} helper="Expected farrowing within 7 days" />
+          <SummaryCard label="Overdue" value={String(overdueCount)} helper="Expected farrowing date already passed" />
+          <SummaryCard label="With Expected Date" value={String(withExpectedDateCount)} helper="Pregnant pigs with farrowing date recorded" />
         </div>
 
-        <SectionCard
-          title="Search Pregnant Pigs"
-          subtitle="Find a pregnant pig by tag number, name, or breed."
-        >
+        <SectionCard title="Search Pregnant Pigs" subtitle="Find a pregnant pig by tag number, name, or breed.">
           <input
             type="text"
             placeholder="Search by tag number, name, or breed"
@@ -233,10 +212,7 @@ export default function PregnantPigsPage() {
           />
         </SectionCard>
 
-        <SectionCard
-          title="Pregnancy Tracking"
-          subtitle={`${filteredPigs.length} pregnant pig${filteredPigs.length === 1 ? "" : "s"} found`}
-        >
+        <SectionCard title="Pregnancy Tracking" subtitle={`${filteredPigs.length} pregnant pig${filteredPigs.length === 1 ? "" : "s"} found`}>
           {filteredPigs.length === 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-center text-gray-500">
               No pregnant pigs found.
@@ -246,27 +222,13 @@ export default function PregnantPigsPage() {
               <table className="min-w-[950px] w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Tag Number
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Name
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Breed
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Pregnancy Status
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Expected Farrowing
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Countdown
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Action
-                    </th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">Tag Number</th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">Name</th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">Breed</th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">Pregnancy Status</th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">Expected Farrowing</th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">Countdown</th>
+                    <th className="px-3 py-3 text-left font-semibold text-gray-700">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -289,7 +251,7 @@ export default function PregnantPigsPage() {
                       <td className="px-3 py-3 whitespace-nowrap">
                         <button
                           onClick={() => router.push(`/pigs/${p.id}`)}
-                          className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                          className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
                           type="button"
                         >
                           Open Pig

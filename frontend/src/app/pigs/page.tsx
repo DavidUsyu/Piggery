@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet } from "@/lib/api";
+import { apiGet, hasClientAuthState } from "@/lib/api";
 
 type Pig = {
   id: string;
@@ -17,14 +17,6 @@ type Pig = {
   farrowingDaysLeft: number | null;
 };
 
-type MeResponse = {
-  id: string;
-  name: string | null;
-  email: string;
-  farmId: string | null;
-  farmName: string | null;
-  role: string | null;
-};
 
 function PigNavCard({
   title,
@@ -68,15 +60,12 @@ function SmallStatCard({
 export default function PigsHomePage() {
   const router = useRouter();
 
-  const [me, setMe] = useState<MeResponse | null>(null);
   const [pigs, setPigs] = useState<Pig[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }
@@ -86,13 +75,9 @@ export default function PigsHomePage() {
         setLoading(true);
         setError(null);
 
-        const [pigsData, meData] = await Promise.all([
-          apiGet<Pig[]>("/pigs"),
-          apiGet<MeResponse>("/auth/me"),
-        ]);
+        const pigsData = await apiGet<Pig[]>("/pigs");
 
         setPigs(pigsData);
-        setMe(meData);
       } catch (err: any) {
         setError(err?.message ?? "Failed to load pigs");
       } finally {
@@ -155,10 +140,11 @@ export default function PigsHomePage() {
             </h1>
 
             <button
+              type="button"
               onClick={() => router.push("/dashboard")}
               className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
             >
-              ← Back to Dashboard
+              Back to Dashboard
             </button>
           </div>
 

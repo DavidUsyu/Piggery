@@ -3,9 +3,9 @@ services:
     image: postgres:16
     container_name: piggery_db
     environment:
-      POSTGRES_USER: piggery
-      POSTGRES_PASSWORD: piggerypass
-      POSTGRES_DB: piggery_db
+      POSTGRES_USER: ${POSTGRES_USER:-piggery}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your local .env file}
+      POSTGRES_DB: ${POSTGRES_DB:-piggery_db}
     ports:
       - "5432:5432"
     volumes:

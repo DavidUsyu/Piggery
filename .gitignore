@@ -1,0 +1,4 @@
+.env
+.env.*
+!.env.example
+frontend_node_modules_stale/

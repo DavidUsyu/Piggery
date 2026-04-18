@@ -59,8 +59,8 @@ export default function RecoverAccountPage() {
               Recover a deleted account
             </h2>
             <p className="mt-4 text-sm leading-6 text-gray-600">
-              Enter the email linked to your deleted account. If recovery is still
-              allowed, your farm account will be restored.
+              Enter the email linked to your deleted account. If the account is
+              still eligible for recovery, it will be restored automatically.
             </p>
 
             <div className="mt-8 grid gap-4">
@@ -96,7 +96,7 @@ export default function RecoverAccountPage() {
           <div className="flex items-center justify-center">
             <AuthCard
               title="Recover account"
-              subtitle="Enter your email to recover your account."
+              subtitle="Enter your email. If the account can be recovered, it will be restored."
             >
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, hasClientAuthState } from "@/lib/api";
 import { formatAge, getAgeUnit, type AgeUnit } from "@/lib/preferences";
 
 type Pig = {
@@ -37,7 +37,7 @@ function pregnancyStatusLabel(status: string) {
 }
 
 function farrowingCountdownLabel(daysLeft: number | null) {
-  if (daysLeft === null) return "—";
+  if (daysLeft === null) return "â€”";
   if (daysLeft > 0) return `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
   if (daysLeft === 0) return "Due today";
   return `${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"} overdue`;
@@ -108,7 +108,6 @@ export default function AllPigsPage() {
   const [ageUnit, setAgeUnit] = useState<AgeUnit>("days");
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [search, setSearch] = useState("");
-
   const [filter, setFilter] = useState<
     "ALL" | "ACTIVE" | "FEMALE" | "MALE" | "PREGNANT" | "RETURNED_TO_HEAT"
   >("ALL");
@@ -120,8 +119,7 @@ export default function AllPigsPage() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }
@@ -268,7 +266,7 @@ export default function AllPigsPage() {
                 Pig Register
               </h1>
               <p className="mt-2 text-sm text-gray-600">
-                {me?.farmName ?? "Farm"} • {activePigs.length} active pigs •{" "}
+                {me?.farmName ?? "Farm"} â€¢ {activePigs.length} active pigs â€¢{" "}
                 {pregnantPigs.length} pregnant
               </p>
             </div>
@@ -276,7 +274,7 @@ export default function AllPigsPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => router.push("/pigs")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
                 type="button"
               >
                 Back to Pigs
@@ -284,10 +282,10 @@ export default function AllPigsPage() {
 
               <button
                 onClick={() => router.push("/dashboard")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
                 type="button"
               >
-                Dashboard
+                Back to Dashboard
               </button>
             </div>
           </div>
@@ -333,85 +331,87 @@ export default function AllPigsPage() {
             title="Add Pig"
             subtitle="Register a new pig and its basic details."
           >
-            <form onSubmit={addPig} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Tag Number
-                </label>
-                <input
-                  value={form.tagNumber}
-                  onChange={(e) =>
-                    setForm({ ...form, tagNumber: e.target.value })
-                  }
-                  className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
-                  placeholder="Enter tag number"
-                  required
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
+            <div data-tour="all-pigs-add-section">
+              <form onSubmit={addPig} className="space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Sex
+                    Tag Number
                   </label>
-                  <select
-                    value={form.sex}
-                    onChange={(e) => setForm({ ...form, sex: e.target.value })}
-                    className="w-full rounded-xl border px-4 py-3 text-gray-900"
-                  >
-                    <option value="FEMALE">FEMALE</option>
-                    <option value="MALE">MALE</option>
-                  </select>
+                  <input
+                    value={form.tagNumber}
+                    onChange={(e) =>
+                      setForm({ ...form, tagNumber: e.target.value })
+                    }
+                    className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
+                    placeholder="Enter tag number"
+                    required
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Sex
+                    </label>
+                    <select
+                      value={form.sex}
+                      onChange={(e) => setForm({ ...form, sex: e.target.value })}
+                      className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                    >
+                      <option value="FEMALE">FEMALE</option>
+                      <option value="MALE">MALE</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      Breed
+                    </label>
+                    <select
+                      value={form.breed}
+                      onChange={(e) => setForm({ ...form, breed: e.target.value })}
+                      className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                    >
+                      <option value="">Select Breed</option>
+                      <option value="Local">Local</option>
+                      <option value="Large White">Large White</option>
+                      <option value="Landrace">Landrace</option>
+                      <option value="Duroc">Duroc</option>
+                      <option value="Camborough">Camborough</option>
+                      <option value="Crossbreed">Crossbreed</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Breed
+                    Birth Date
                   </label>
-                  <select
-                    value={form.breed}
-                    onChange={(e) => setForm({ ...form, breed: e.target.value })}
-                    className="w-full rounded-xl border px-4 py-3 text-gray-900"
-                  >
-                    <option value="">Select Breed</option>
-                    <option value="Local">Local</option>
-                    <option value="Large White">Large White</option>
-                    <option value="Landrace">Landrace</option>
-                    <option value="Duroc">Duroc</option>
-                    <option value="Camborough">Camborough</option>
-                    <option value="Crossbreed">Crossbreed</option>
-                  </select>
+                  <DatePicker
+                    selected={birthDate}
+                    onChange={(date: Date | null) => setBirthDate(date)}
+                    dateFormat="dd/MM/yyyy"
+                    placeholderText="Select birth date"
+                    className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
+                    maxDate={new Date()}
+                    showMonthDropdown
+                    showYearDropdown
+                    dropdownMode="select"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Adding birth date enables age, stage, and timeline tasks.
+                  </p>
                 </div>
-              </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Birth Date
-                </label>
-                <DatePicker
-                  selected={birthDate}
-                  onChange={(date) => setBirthDate(date)}
-                  dateFormat="dd/MM/yyyy"
-                  placeholderText="Select birth date"
-                  className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
-                  maxDate={new Date()}
-                  showMonthDropdown
-                  showYearDropdown
-                  dropdownMode="select"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Adding birth date enables age, stage, and timeline tasks.
-                </p>
-              </div>
-
-              <button
-                className="rounded-xl bg-black px-4 py-3 font-medium text-white disabled:opacity-60"
-                disabled={saving}
-                type="submit"
-              >
-                {saving ? "Saving..." : "Add Pig"}
-              </button>
-            </form>
+                <button
+                  className="rounded-xl bg-black px-4 py-3 font-medium text-white disabled:opacity-60"
+                  disabled={saving}
+                  type="submit"
+                >
+                  {saving ? "Saving..." : "Add Pig"}
+                </button>
+              </form>
+            </div>
           </SectionCard>
 
           <SectionCard
@@ -454,7 +454,7 @@ export default function AllPigsPage() {
                 <button
                   type="button"
                   onClick={() => router.push("/pregnant-pigs")}
-                  className="mt-3 rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                  className="mt-3 rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
                 >
                   View Pregnant Pigs
                 </button>
@@ -467,125 +467,127 @@ export default function AllPigsPage() {
           title="Pig List"
           subtitle="View status, pregnancy progress, and farrowing countdowns."
         >
-          <div className="mb-4 grid gap-4 md:grid-cols-2">
-            <input
-              type="text"
-              placeholder="Search by tag number, breed, sex, or status"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
-            />
+          <div data-tour="all-pigs-list-section">
+            <div className="mb-4 grid gap-4 md:grid-cols-2">
+              <input
+                type="text"
+                placeholder="Search by tag number, breed, sex, or status"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
+              />
 
-            <select
-              value={filter}
-              onChange={(e) =>
-                setFilter(
-                  e.target.value as
-                    | "ALL"
-                    | "ACTIVE"
-                    | "FEMALE"
-                    | "MALE"
-                    | "PREGNANT"
-                    | "RETURNED_TO_HEAT",
-                )
-              }
-              className="w-full rounded-xl border px-4 py-3 text-gray-900"
-            >
-              <option value="ALL">All Pigs</option>
-              <option value="ACTIVE">Active</option>
-              <option value="FEMALE">Female</option>
-              <option value="MALE">Male</option>
-              <option value="PREGNANT">Pregnant</option>
-              <option value="RETURNED_TO_HEAT">Returned to Heat</option>
-            </select>
-          </div>
-
-          {filteredPigs.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-6 text-center text-gray-500">
-              No pigs added yet.
+              <select
+                value={filter}
+                onChange={(e) =>
+                  setFilter(
+                    e.target.value as
+                      | "ALL"
+                      | "ACTIVE"
+                      | "FEMALE"
+                      | "MALE"
+                      | "PREGNANT"
+                      | "RETURNED_TO_HEAT",
+                  )
+                }
+                className="w-full rounded-xl border px-4 py-3 text-gray-900"
+              >
+                <option value="ALL">All Pigs</option>
+                <option value="ACTIVE">Active</option>
+                <option value="FEMALE">Female</option>
+                <option value="MALE">Male</option>
+                <option value="PREGNANT">Pregnant</option>
+                <option value="RETURNED_TO_HEAT">Returned to Heat</option>
+              </select>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-[1100px] w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Tag Number
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Sex
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Breed
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Age
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Status
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Pregnancy
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Expected Farrowing
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Countdown
-                    </th>
-                    <th className="px-3 py-3 text-left font-semibold text-gray-700">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPigs.map((p) => (
-                    <tr key={p.id} className="border-b">
-                      <td className="px-3 py-3 text-gray-900">{p.tagNumber}</td>
-                      <td className="px-3 py-3 text-gray-900">{p.sex}</td>
-                      <td className="px-3 py-3 text-gray-900">{p.breed ?? "-"}</td>
-                      <td className="px-3 py-3 text-gray-900">
-                        {formatAge(p.birthDate, ageUnit)}
-                      </td>
-                      <td className="px-3 py-3 text-gray-900">{p.status}</td>
-                      <td className="px-3 py-3 text-gray-900">
-                        {pregnancyStatusLabel(p.pregnancyStatus)}
-                      </td>
-                      <td className="px-3 py-3 text-gray-900">
-                        {p.expectedFarrowingDate
-                          ? new Date(p.expectedFarrowingDate).toLocaleDateString()
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={countdownTone(p.farrowingDaysLeft)}>
-                          {farrowingCountdownLabel(p.farrowingDaysLeft)}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-2">
-                          {/* Open Button */}
-                          <button
-                            onClick={() => router.push(`/pigs/${p.id}`)}
-                            className="rounded-lg border px-3 py-1 text-sm text-gray-900"
-                          >
-                            Open
-                          </button>
 
-                          {/* Edit Button */}
-                          <button
-                            onClick={() => router.push(`/pigs/${p.id}#edit`)}
-                            className="rounded-lg border px-3 py-1 text-sm text-gray-900"
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
+            {filteredPigs.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-6 text-center text-gray-500">
+                No pigs added yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-[1100px] w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Tag Number
+                      </th>
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Sex
+                      </th>
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Breed
+                      </th>
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Age
+                      </th>
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Status
+                      </th>
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Pregnancy
+                      </th>
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Expected Farrowing
+                      </th>
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Countdown
+                      </th>
+                      <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                        Action
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {filteredPigs.map((p) => (
+                      <tr key={p.id} className="border-b">
+                        <td className="px-3 py-3 text-gray-900">{p.tagNumber}</td>
+                        <td className="px-3 py-3 text-gray-900">{p.sex}</td>
+                        <td className="px-3 py-3 text-gray-900">{p.breed ?? "-"}</td>
+                        <td className="px-3 py-3 text-gray-900">
+                          {formatAge(p.birthDate, ageUnit)}
+                        </td>
+                        <td className="px-3 py-3 text-gray-900">{p.status}</td>
+                        <td className="px-3 py-3 text-gray-900">
+                          {pregnancyStatusLabel(p.pregnancyStatus)}
+                        </td>
+                        <td className="px-3 py-3 text-gray-900">
+                          {p.expectedFarrowingDate
+                            ? new Date(p.expectedFarrowingDate).toLocaleDateString()
+                            : "â€”"}
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={countdownTone(p.farrowingDaysLeft)}>
+                            {farrowingCountdownLabel(p.farrowingDaysLeft)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => router.push(`/pigs/${p.id}`)}
+                              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                              type="button"
+                            >
+                              Open
+                            </button>
+
+                            <button
+                              onClick={() => router.push(`/pigs/${p.id}#edit`)}
+                              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                              type="button"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </SectionCard>
       </div>
     </div>

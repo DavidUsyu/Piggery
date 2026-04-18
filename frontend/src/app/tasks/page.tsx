@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet } from "@/lib/api";
+import { apiGet, hasClientAuthState } from "@/lib/api";
 
 type DueTask = {
   pigId: string;
@@ -95,9 +95,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }
@@ -169,7 +167,7 @@ export default function TasksPage() {
 
             <button
               onClick={() => router.push("/dashboard")}
-              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
               type="button"
             >
               Back to Dashboard
@@ -242,7 +240,7 @@ export default function TasksPage() {
                 key={item.key}
                 type="button"
                 onClick={() => setFilter(item.key as TaskFilter)}
-                className={`rounded-full border px-4 py-2 text-sm text-gray-900 ${
+                className={`rounded-full border px-4 py-2 text-sm text-gray-900 hover:bg-gray-100 transition ${
                   filter === item.key ? "font-semibold" : ""
                 }`}
               >
@@ -314,7 +312,7 @@ export default function TasksPage() {
                       <td className="px-3 py-3 whitespace-nowrap">
                         <button
                           onClick={() => router.push(`/pigs/${task.pigId}`)}
-                          className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                          className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
                           type="button"
                         >
                           Open Pig

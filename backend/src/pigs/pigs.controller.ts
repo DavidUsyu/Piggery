@@ -9,6 +9,7 @@ import {
   Param,
 } from '@nestjs/common';
 import { JwtGuard } from '../auth/auth.jwt.guard';
+import { FARM_WRITE_ROLES, Roles } from '../auth/roles.decorator';
 import { CreatePigDto } from './dto/create-pig.dto';
 import { UpdatePigDto } from './dto/update-pig.dto';
 import { UpdatePigStatusDto } from './dto/update-pig-status.dto';
@@ -20,6 +21,7 @@ export class PigsController {
   constructor(private pigsService: PigsService) {}
 
   @Post()
+  @Roles(...FARM_WRITE_ROLES)
   create(@Req() req: any, @Body() dto: CreatePigDto) {
     return this.pigsService.create(req.user.farmId, dto);
   }
@@ -35,11 +37,13 @@ export class PigsController {
   }
 
   @Patch(':id')
+  @Roles(...FARM_WRITE_ROLES)
   update(@Req() req: any, @Param('id') id: string, @Body() dto: UpdatePigDto) {
     return this.pigsService.update(req.user.farmId, id, dto);
   }
 
   @Patch(':id/status')
+  @Roles(...FARM_WRITE_ROLES)
   updateStatus(
     @Req() req: any,
     @Param('id') id: string,

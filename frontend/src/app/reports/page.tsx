@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet } from "@/lib/api";
+import { apiGet, hasClientAuthState } from "@/lib/api";
 import {
   BarChart,
   Bar,
@@ -78,7 +78,7 @@ function exportPDF({ expenses, sales }: any) {
 
   // Sales Table
   autoTable(doc, {
-    startY: doc.lastAutoTable.finalY + 10,
+    startY: ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 30) + 10,
     head: [["Date", "Quantity", "Total", "Buyer"]],
     body: sales.map((s: any) => [
       new Date(s.saleDate).toLocaleDateString(),
@@ -209,9 +209,7 @@ export default function ReportsPage() {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }
@@ -375,10 +373,11 @@ export default function ReportsPage() {
             </div>
 
             <button
+              type="button"
               onClick={() => router.push("/dashboard")}
               className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
             >
-              ← Back to Dashboard
+              Back to Dashboard
             </button>
           </div>
 

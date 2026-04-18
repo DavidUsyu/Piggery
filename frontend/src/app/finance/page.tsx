@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, hasClientAuthState } from "@/lib/api";
 
 type Pig = {
   id: string;
@@ -140,9 +140,7 @@ export default function FinancePage() {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }
@@ -264,31 +262,33 @@ export default function FinancePage() {
         </div>
 
         {summary && (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard
-              label="Total Revenue"
-              value={`KES ${summary.totalRevenue.toLocaleString()}`}
-              helper={`${summary.saleCount} sale record${summary.saleCount === 1 ? "" : "s"}`}
-            />
-            <SummaryCard
-              label="Total Expenses"
-              value={`KES ${summary.totalExpenses.toLocaleString()}`}
-              helper={`${summary.expenseCount} expense record${summary.expenseCount === 1 ? "" : "s"}`}
-            />
-            <SummaryCard
-              label="Net Result"
-              value={`KES ${summary.netProfit.toLocaleString()}`}
-              helper={summary.status}
-            />
-            <SummaryCard
-              label="Top Expense"
-              value={topExpense ? topExpense.category : "No data"}
-              helper={
-                topExpense
-                  ? `KES ${topExpense.amount.toLocaleString()}`
-                  : "Record expenses to see this"
-              }
-            />
+          <div data-tour="finance-summary-section">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <SummaryCard
+                label="Total Revenue"
+                value={`KES ${summary.totalRevenue.toLocaleString()}`}
+                helper={`${summary.saleCount} sale record${summary.saleCount === 1 ? "" : "s"}`}
+              />
+              <SummaryCard
+                label="Total Expenses"
+                value={`KES ${summary.totalExpenses.toLocaleString()}`}
+                helper={`${summary.expenseCount} expense record${summary.expenseCount === 1 ? "" : "s"}`}
+              />
+              <SummaryCard
+                label="Net Result"
+                value={`KES ${summary.netProfit.toLocaleString()}`}
+                helper={summary.status}
+              />
+              <SummaryCard
+                label="Top Expense"
+                value={topExpense ? topExpense.category : "No data"}
+                helper={
+                  topExpense
+                    ? `KES ${topExpense.amount.toLocaleString()}`
+                    : "Record expenses to see this"
+                }
+              />
+            </div>
           </div>
         )}
 

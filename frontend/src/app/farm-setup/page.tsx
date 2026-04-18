@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet } from "@/lib/api";
+import { apiGet, hasClientAuthState } from "@/lib/api";
 import {
   getAgeUnit,
   getStartPage,
@@ -99,9 +99,7 @@ export default function FarmSetupPage() {
   const [savedMessage, setSavedMessage] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }

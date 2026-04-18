@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { apiPost } from "@/lib/api";
 
@@ -9,7 +9,7 @@ type ResetPasswordResponse = {
   message: string;
 };
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token");
@@ -19,6 +19,8 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const passwordRule =
+    "Use at least 8 characters, including uppercase, lowercase, and a number.";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,8 +32,8 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
+      setError(passwordRule);
       return;
     }
 
@@ -80,6 +82,7 @@ export default function ResetPasswordPage() {
               autoComplete="new-password"
               required
             />
+            <p className="mt-1 text-xs text-gray-500">{passwordRule}</p>
           </div>
 
           <div>
@@ -123,5 +126,13 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

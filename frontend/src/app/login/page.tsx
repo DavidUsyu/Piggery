@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { apiPost } from "@/lib/api";
+import { apiPost, setClientAuthState } from "@/lib/api";
 import { getStartPage } from "@/lib/preferences";
 
 type LoginResponse = {
-  accessToken: string;
+  message: string;
 };
 
 function AuthCard({
@@ -47,12 +47,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await apiPost<LoginResponse>("/auth/login", {
+      await apiPost<LoginResponse>("/auth/login", {
         email: form.email,
         password: form.password,
       });
 
-      localStorage.setItem("token", res.accessToken);
+      setClientAuthState();
       const startPage = getStartPage();
       router.push(startPage);
     } catch (err: any) {

@@ -1,7 +1,7 @@
  "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost, hasClientAuthState } from "@/lib/api";
 import { getAgeUnit, type AgeUnit } from "@/lib/preferences";
 import {
   CartesianGrid,
@@ -12,28 +12,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
- async function updatePigInfo(e: React.FormEvent) {
-    e.preventDefault();
-    setSavingPigInfo(true);
-    setError(null);
-
-    try {
-      await apiPatch(`/pigs/${id}`, {
-        tagNumber: pigForm.tagNumber,
-        name: pigForm.name || undefined,
-        sex: pigForm.sex,
-        breed: pigForm.breed || undefined,
-        birthDate: pigForm.birthDate || undefined,
-      });
-
-      await loadPigData();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to update pig information");
-    } finally {
-      setSavingPigInfo(false);
-    }
-  }
 
 type Timeline = {
   pigId: string;
@@ -119,56 +97,56 @@ const ACTION_CONFIG: Record<
 > = {
   WEIGHT: {
     label: "Record Weight",
-    emoji: "⚖️",
+    emoji: "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â",
     helper: "Quickly save the pig's latest weight",
   },
   DEWORMING: {
     label: "Deworm",
-    emoji: "🧪",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Âª",
     helper: "Record deworming and auto-sync the cost to finance",
     costLabel: "Deworming Cost",
   },
   VACCINATION: {
     label: "Vaccinate",
-    emoji: "💉",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°",
     helper: "Record vaccination and auto-sync the cost to finance",
     costLabel: "Vaccination Cost",
   },
   TREATMENT: {
     label: "Treat",
-    emoji: "🩺",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â©Ãƒâ€šÃ‚Âº",
     helper: "Record treatment and auto-sync the cost to finance",
     costLabel: "Treatment Cost",
   },
   SALE: {
     label: "Record Sale",
-    emoji: "💰",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°",
     helper: "Record sale and auto-sync revenue to finance",
     costLabel: "Sale Amount",
   },
   BREEDING: {
     label: "Breeding",
-    emoji: "🐗",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
     helper: "Record a breeding event for this female pig",
   },
   PREGNANCY_CHECK: {
     label: "Pregnancy Check",
-    emoji: "🍼",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â¼",
     helper: "Record the pregnancy check result",
   },
   FARROWING: {
     label: "Farrowing",
-    emoji: "🐖",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“",
     helper: "Record piglets born and stillborn count",
   },
   WEANING: {
     label: "Weaning",
-    emoji: "🌱",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â±",
     helper: "Record weaning for this pig or litter",
   },
   NOTE: {
     label: "Add Note",
-    emoji: "📝",
+    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â",
     helper: "Save a general note for this pig",
   },
 };
@@ -204,7 +182,7 @@ function taskDisplayName(taskType: string) {
   if (taskType === "WEANING") return "Weaning";
   if (taskType === "PREGNANCY_CHECK") return "Pregnancy Check";
   if (taskType === "FARROWING_EXPECTED") return "Expected Farrowing";
-  if (taskType === "REBREED") return "Returned to heat — breed again";
+  if (taskType === "REBREED") return "Returned to heat ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â breed again";
   return taskType;
 }
 
@@ -334,6 +312,27 @@ export default function PigProfilePage() {
       birthDate: "",
     });
     const [savingPigInfo, setSavingPigInfo] = useState(false);
+  async function updatePigInfo(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSavingPigInfo(true);
+    setError(null);
+
+    try {
+      await apiPatch(`/pigs/${id}`, {
+        tagNumber: pigForm.tagNumber,
+        name: pigForm.name || undefined,
+        sex: pigForm.sex,
+        breed: pigForm.breed || undefined,
+        birthDate: pigForm.birthDate || undefined,
+      });
+
+      await loadPigData();
+    } catch (err: any) {
+      setError(err.message ?? "Failed to update pig information");
+    } finally {
+      setSavingPigInfo(false);
+    }
+  }
 
   useEffect(() => {
     setAgeUnit(getAgeUnit());
@@ -530,7 +529,8 @@ export default function PigProfilePage() {
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function loadPigData() {
+  const loadPigData = useCallback(async () => {
+    if (!id) return;
     try {
       setError(null);
       const [timelineRes, eventsRes, tasksRes] = await Promise.all([
@@ -554,7 +554,7 @@ export default function PigProfilePage() {
     } catch (err: any) {
       setError(err.message ?? "Failed to load pig profile");
     }
-  }
+  }, [id]);
 
   async function addEvent(e: React.FormEvent) {
     e.preventDefault();
@@ -641,13 +641,14 @@ export default function PigProfilePage() {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) router.push("/login");
+    if (!hasClientAuthState()) {
+      router.push("/login");
+    }
   }, [router]);
 
   useEffect(() => {
-    if (id) loadPigData();
-  }, [id]);
+    void loadPigData();
+  }, [loadPigData]);
 
   if (!timeline) {
     return <div className="p-6">Loading pig profile...</div>;
@@ -665,13 +666,13 @@ export default function PigProfilePage() {
               </h1>
               <div className="mt-2 flex flex-wrap gap-2 text-sm text-gray-600">
                 <span>{timeline.sex}</span>
-                <span>•</span>
+                <span>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢</span>
                 <span>{timeline.stage}</span>
-                <span>•</span>
+                <span>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢</span>
                 <span>Status: {timeline.status}</span>
                 {timeline.sex === "FEMALE" ? (
                   <>
-                    <span>•</span>
+                    <span>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢</span>
                     <span>
                       Pregnancy: {pregnancyStatusLabel(timeline.pregnancyStatus)}
                     </span>
@@ -1470,3 +1471,4 @@ export default function PigProfilePage() {
     </div>
   );
 }
+

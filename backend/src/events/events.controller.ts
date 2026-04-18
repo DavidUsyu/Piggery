@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '../auth/auth.jwt.guard';
+import { FARM_WRITE_ROLES, Roles } from '../auth/roles.decorator';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateBulkEventDto } from './dto/create-bulk-event.dto';
 import { EventsService } from './events.service';
@@ -21,11 +22,13 @@ export class EventsController {
   constructor(private eventsService: EventsService) {}
 
   @Post()
+  @Roles(...FARM_WRITE_ROLES)
   create(@Req() req: any, @Body() dto: CreateEventDto) {
     return this.eventsService.create(req.user.farmId, dto);
   }
 
   @Post('bulk')
+  @Roles(...FARM_WRITE_ROLES)
   bulkCreate(@Req() req: any, @Body() dto: CreateBulkEventDto) {
     return this.eventsService.bulkCreate(req.user.farmId, dto);
   }
@@ -36,11 +39,13 @@ export class EventsController {
   }
 
   @Patch(':id')
+  @Roles(...FARM_WRITE_ROLES)
   update(@Req() req: any, @Param('id') id: string, @Body() dto: CreateEventDto) {
     return this.eventsService.update(req.user.farmId, id, dto);
   }
 
   @Delete(':id')
+  @Roles(...FARM_WRITE_ROLES)
   remove(@Req() req: any, @Param('id') id: string) {
     return this.eventsService.remove(req.user.farmId, id);
   }

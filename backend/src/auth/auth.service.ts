@@ -7,11 +7,20 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { Resend } from 'resend';
 
 @Injectable()
 export class AuthService {
+  private readonly resend = new Resend(process.env.RESEND_API_KEY);
+  private readonly passwordResetResponse = {
+    message: 'If the email exists, a reset link has been sent.',
+  };
+  private readonly accountRecoveryResponse = {
+    message:
+      'If the account is eligible for recovery, it has been restored. Please try signing in again.',
+  };
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
@@ -70,8 +79,6 @@ export class AuthService {
         },
       },
     });
-
-
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -132,50 +139,51 @@ export class AuthService {
     });
 
     if (!user) {
-      return {
-        message: 'If the email exists, a reset link has been generated.',
-      };
+      return this.passwordResetResponse;
     }
 
     const token = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(token);
     const expiry = new Date(Date.now() + 1000 * 60 * 30);
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        resetToken: token,
+        resetToken: tokenHash,
         resetTokenExpiry: expiry,
       },
     });
 
-    const resetLink = `http://localhost:3000/reset-password?token=${token}`;
+    const frontendBaseUrl =
+      process.env.FRONTEND_URL?.trim() || 'http://localhost:3000';
+    const resetLink = `${frontendBaseUrl}/reset-password?token=${token}`;
 
-await this.resend.emails.send({
-  from: 'onboarding@resend.dev', // default test sender
-  to: user.email,
-  subject: 'Reset your password',
-  html: `
-    <h2>Password Reset</h2>
-    <p>Hello ${user.name ?? "User"},</p>
-    <p>You requested to reset your password.</p>
-    <p>
-      <a href="${resetLink}" style="padding:10px 16px;background:black;color:white;text-decoration:none;border-radius:8px;">
-        Reset Password
-      </a>
-    </p>
-    <p>This link expires in 30 minutes.</p>
-  `,
-});
+    await this.resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: user.email,
+      subject: 'Reset your password',
+      html: `
+        <h2>Password Reset</h2>
+        <p>Hello ${user.name ?? 'User'},</p>
+        <p>You requested to reset your password.</p>
+        <p>
+          <a href="${resetLink}" style="padding:10px 16px;background:black;color:white;text-decoration:none;border-radius:8px;">
+            Reset Password
+          </a>
+        </p>
+        <p>This link expires in 30 minutes.</p>
+      `,
+    });
 
-return {
-  message: 'If the email exists, a reset link has been sent.',
-};
+    return this.passwordResetResponse;
   }
 
   async resetPassword(token: string, newPassword: string) {
+    const tokenHash = this.hashToken(token);
+
     const user = await this.prisma.user.findFirst({
       where: {
-        resetToken: token,
+        resetToken: tokenHash,
         resetTokenExpiry: {
           gte: new Date(),
         },
@@ -238,11 +246,11 @@ return {
     });
 
     if (!user || !user.deletedAt || !user.scheduledPurgeAt) {
-      throw new BadRequestException('No recoverable account found');
+      return this.accountRecoveryResponse;
     }
 
     if (user.scheduledPurgeAt.getTime() < Date.now()) {
-      throw new BadRequestException('Recovery window has expired');
+      return this.accountRecoveryResponse;
     }
 
     await this.prisma.user.update({
@@ -254,9 +262,10 @@ return {
       },
     });
 
-    return {
-      message: 'Account recovered successfully',
-    };
+    return this.accountRecoveryResponse;
   }
-  private resend = new Resend(process.env.RESEND_API_KEY);
+
+  private hashToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
 }

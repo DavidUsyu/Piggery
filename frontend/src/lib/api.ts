@@ -1,82 +1,82 @@
-export async function apiPatch<T>(path: string, body: any): Promise<T> {
-  const token = getToken();
-
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${text}`);
-  }
-
-  return res.json();
-}
-export async function apiDelete<T>(path: string): Promise<T> {
-  const token = getToken();
-
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${text}`);
-  }
-
-  return res.json();
-}
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const CLIENT_AUTH_STATE_KEY = "piggery-auth-state";
+const LEGACY_TOKEN_KEY = "token";
 
-export function getToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
+const PUBLIC_AUTH_PATHS = new Set([
+  "/auth/login",
+  "/auth/register",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/recover-account",
+]);
+
+export function setClientAuthState() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLIENT_AUTH_STATE_KEY, "1");
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+}
+
+export function clearClientAuthState() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(CLIENT_AUTH_STATE_KEY);
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+}
+
+export function hasClientAuthState() {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(CLIENT_AUTH_STATE_KEY) === "1";
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    credentials: "include",
+    cache: init?.cache ?? "no-store",
+  });
+
+  if (!res.ok) {
+    if (res.status === 401 && !PUBLIC_AUTH_PATHS.has(path)) {
+      clearClientAuthState();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+
+    const text = await res.text();
+    throw new Error(`${res.status} ${res.statusText}: ${text}`);
+  }
+
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
+  return res.json();
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const token = getToken();
-
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${text}`);
-  }
-
-  return res.json();
+  return request<T>(path);
 }
 
-export async function apiPost<T>(path: string, body: any): Promise<T> {
-  const token = getToken();
-
-  const res = await fetch(`${BASE_URL}${path}`, {
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
     body: JSON.stringify(body),
   });
+}
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${text}`);
-  }
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
 
-  return res.json();
+export async function apiDelete<T>(path: string): Promise<T> {
+  return request<T>(path, {
+    method: "DELETE",
+  });
 }

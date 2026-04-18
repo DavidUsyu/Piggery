@@ -1,12 +1,9 @@
-import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
+import { IsString, Matches, MinLength } from 'class-validator';
 
-export class RegisterDto {
+export class ResetPasswordDto {
   @IsString()
-  @MinLength(2)
-  name!: string;
-
-  @IsEmail()
-  email!: string;
+  @MinLength(1)
+  token!: string;
 
   @IsString()
   @MinLength(8)
@@ -15,8 +12,4 @@ export class RegisterDto {
       'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
   password!: string;
-
-  @IsString()
-  @MinLength(2)
-  farmName!: string;
 }

@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet } from "@/lib/api";
+import {
+  apiDelete,
+  apiGet,
+  apiPost,
+  clearClientAuthState,
+  hasClientAuthState,
+} from "@/lib/api";
 
 type Pig = {
   id: string;
@@ -98,11 +104,18 @@ function QuickActionCard({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="rounded-2xl border bg-white px-5 py-6 text-left shadow-sm transition hover:bg-gray-50 hover:shadow-md w-full"
     >
-      <div className="text-3xl">{emoji}</div>
-      <div className="mt-3 text-lg font-semibold text-gray-900">{title}</div>
-      <div className="mt-1 text-sm text-gray-600">{subtitle}</div>
+      <div className="flex items-start gap-4">
+        <div className="shrink-0 text-3xl leading-none">{emoji}</div>
+
+        <div className="min-w-0">
+          <div className="text-lg font-semibold text-gray-900">{title}</div>
+          <div className="mt-2 text-sm leading-6 text-gray-600">
+            {subtitle}
+          </div>
+        </div>
+      </div>
     </button>
   );
 }
@@ -172,9 +185,7 @@ export default function DashboardPage() {
   }, [tasks]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
+    if (!hasClientAuthState()) {
       router.push("/login");
       return;
     }
@@ -240,8 +251,13 @@ export default function DashboardPage() {
     loadDashboard();
   }, [router]);
 
-  function handleLogout() {
-    localStorage.removeItem("token");
+  async function handleLogout() {
+    try {
+      await apiPost("/auth/logout", {});
+    } finally {
+      clearClientAuthState();
+    }
+
     router.push("/login");
   }
 
@@ -254,24 +270,8 @@ export default function DashboardPage() {
 
     try {
       setError(null);
-      const token = localStorage.getItem("token");
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/account`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message ?? "Failed to delete account");
-      }
-
-      localStorage.removeItem("token");
+      await apiDelete("/auth/account");
+      clearClientAuthState();
       router.push("/login");
     } catch (err: any) {
       setError(err?.message ?? "Failed to delete account");
@@ -297,6 +297,16 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                sessionStorage.setItem("start-walkthrough", "true");
+                window.dispatchEvent(new Event("start-feature-walkthrough"));
+              }}
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+            >
+              Start App Tour
+            </button>
             <button
               onClick={() => router.push("/forgot-password")}
               className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
@@ -370,7 +380,7 @@ export default function DashboardPage() {
               </div>
 
               <button
-                onClick={() => router.push("/pigs/all")}
+                onClick={() => router.push("/tasks")}
                 className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
               >
                 View All
@@ -484,39 +494,77 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Quick Actions</h2>
             <p className="text-sm text-gray-600">
-              Use these instead of making the dashboard only a menu.
+              Open the main parts of the farm system quickly.
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <QuickActionCard
-              title="Record Treatment"
-              subtitle="Open pigs and treat a pig quickly"
-              emoji="💉"
-              onClick={() => router.push("/pigs")}
-            />
-            <QuickActionCard
-              title="Record Sale"
-              subtitle="Go straight to finance sales"
-              emoji="💰"
-              onClick={() => router.push("/finance")}
-            />
-            <QuickActionCard
-              title="Add Farm Expense"
-              subtitle="Record feed, labor, utilities and more"
-              emoji="🧾"
-              onClick={() => router.push("/finance")}
-            />
-            <QuickActionCard
-              title="View Reports"
-              subtitle="Open charts and farm performance trends"
-              emoji="📊"
-              onClick={() => router.push("/reports")}
-            />
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            <div data-tour="dashboard-pigs-card">
+              <QuickActionCard
+                title="Pig Management"
+                subtitle="Open pigs, register pigs, and manage pig details."
+                emoji="🐷"
+                onClick={() => router.push("/pigs")}
+              />
+            </div>
+
+            <div data-tour="dashboard-finance-card">
+              <QuickActionCard
+                title="Finance"
+                subtitle="Record sales, review expenses, and check profit or loss."
+                emoji="💰"
+                onClick={() => router.push("/finance")}
+              />
+            </div>
+
+            <div data-tour="dashboard-events-card">
+              <QuickActionCard
+                title="Events"
+                subtitle="Review farm-wide event history and recorded pig activities."
+                emoji="📅"
+                onClick={() => router.push("/events")}
+              />
+            </div>
+
+            <div data-tour="dashboard-feed-card">
+              <QuickActionCard
+                title="Feed Inventory"
+                subtitle="Manage feed types, purchases, and feed usage."
+                emoji="🌾"
+                onClick={() => router.push("/feed")}
+              />
+            </div>
+
+            <div data-tour="dashboard-bulk-events-card">
+              <QuickActionCard
+                title="Bulk Events"
+                subtitle="Record one event for multiple pigs at the same time."
+                emoji="📦"
+                onClick={() => router.push("/bulk-events")}
+              />
+            </div>
+
+            <div data-tour="dashboard-farm-setup-card">
+              <QuickActionCard
+                title="Farm Setup"
+                subtitle="Manage farm information, preferences, and settings."
+                emoji="⚙️"
+                onClick={() => router.push("/farm-setup")}
+              />
+            </div>
+
+            <div data-tour="dashboard-reports-card">
+              <QuickActionCard
+                title="View Reports"
+                subtitle="Open reports and review farm performance trends."
+                emoji="📊"
+                onClick={() => router.push("/reports")}
+              />
+            </div>
           </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-2">
+        <section>
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -558,65 +606,6 @@ export default function DashboardPage() {
                   No sales recorded yet.
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Useful Pages
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Keep these links, but move them below insight and action.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => router.push("/pigs")}
-                className="rounded-xl border p-4 text-left hover:bg-gray-50"
-              >
-                <div className="font-semibold text-gray-900">Pigs</div>
-                <div className="text-sm text-gray-600">
-                  Manage pigs and open pig details
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => router.push("/events")}
-                className="rounded-xl border p-4 text-left hover:bg-gray-50"
-              >
-                <div className="font-semibold text-gray-900">Events</div>
-                <div className="text-sm text-gray-600">
-                  Review farm-wide event history
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => router.push("/farm-setup")}
-                className="rounded-xl border p-4 text-left hover:bg-gray-50"
-              >
-                <div className="font-semibold text-gray-900">Farm Setup</div>
-                <div className="text-sm text-gray-600">
-                  Manage farm information and settings
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => router.push("/bulk-events")}
-                className="rounded-xl border p-4 text-left hover:bg-gray-50"
-              >
-                <div className="font-semibold text-gray-900">Bulk Events</div>
-                <div className="text-sm text-gray-600">
-                  Record one event for multiple pigs
-                </div>
-              </button>
             </div>
           </div>
         </section>
