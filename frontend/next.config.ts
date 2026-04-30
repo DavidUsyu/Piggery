@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
+const enforceHttps = process.env.ENFORCE_HTTPS === "true";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 const connectSrc = [
   "'self'",
@@ -22,7 +23,7 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
-  "upgrade-insecure-requests",
+  enforceHttps ? "upgrade-insecure-requests" : "",
 ]
   .join("; ")
   .replace(/\s{2,}/g, " ")
