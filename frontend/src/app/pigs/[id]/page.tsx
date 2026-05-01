@@ -97,56 +97,56 @@ const ACTION_CONFIG: Record<
 > = {
   WEIGHT: {
     label: "Record Weight",
-    emoji: "ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â",
+    emoji: "KG",
     helper: "Quickly save the pig's latest weight",
   },
   DEWORMING: {
     label: "Deworm",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â§Ãƒâ€šÃ‚Âª",
+    emoji: "DW",
     helper: "Record deworming and auto-sync the cost to finance",
     costLabel: "Deworming Cost",
   },
   VACCINATION: {
     label: "Vaccinate",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°",
+    emoji: "VX",
     helper: "Record vaccination and auto-sync the cost to finance",
     costLabel: "Vaccination Cost",
   },
   TREATMENT: {
     label: "Treat",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â©Ãƒâ€šÃ‚Âº",
+    emoji: "RX",
     helper: "Record treatment and auto-sync the cost to finance",
     costLabel: "Treatment Cost",
   },
   SALE: {
     label: "Record Sale",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â°",
+    emoji: "KES",
     helper: "Record sale and auto-sync revenue to finance",
     costLabel: "Sale Amount",
   },
   BREEDING: {
     label: "Breeding",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â",
+    emoji: "BR",
     helper: "Record a breeding event for this female pig",
   },
   PREGNANCY_CHECK: {
     label: "Pregnancy Check",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒâ€šÃ‚Â¼",
+    emoji: "PC",
     helper: "Record the pregnancy check result",
   },
   FARROWING: {
     label: "Farrowing",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“",
+    emoji: "FR",
     helper: "Record piglets born and stillborn count",
   },
   WEANING: {
     label: "Weaning",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã¢â‚¬â„¢Ãƒâ€šÃ‚Â±",
+    emoji: "WN",
     helper: "Record weaning for this pig or litter",
   },
   NOTE: {
     label: "Add Note",
-    emoji: "ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â",
+    emoji: "NT",
     helper: "Save a general note for this pig",
   },
 };
@@ -182,7 +182,7 @@ function taskDisplayName(taskType: string) {
   if (taskType === "WEANING") return "Weaning";
   if (taskType === "PREGNANCY_CHECK") return "Pregnancy Check";
   if (taskType === "FARROWING_EXPECTED") return "Expected Farrowing";
-  if (taskType === "REBREED") return "Returned to heat ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â breed again";
+  if (taskType === "REBREED") return "Returned to heat - breed again";
   return taskType;
 }
 
@@ -456,6 +456,14 @@ export default function PigProfilePage() {
   }, [events]);
 
   const selectedConfig = ACTION_CONFIG[selectedAction] ?? ACTION_CONFIG.WEIGHT;
+  const profileDetails = [
+    timeline?.sex,
+    timeline?.stage,
+    timeline ? `Status: ${timeline.status}` : null,
+    timeline?.sex === "FEMALE"
+      ? `Pregnancy: ${pregnancyStatusLabel(timeline.pregnancyStatus)}`
+      : null,
+  ].filter(Boolean);
 
   function resetEventForm(nextType = "WEIGHT") {
     setEditingEventId(null);
@@ -665,19 +673,12 @@ export default function PigProfilePage() {
                 #{timeline.tagNumber}
               </h1>
               <div className="mt-2 flex flex-wrap gap-2 text-sm text-gray-600">
-                <span>{timeline.sex}</span>
-                <span>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢</span>
-                <span>{timeline.stage}</span>
-                <span>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢</span>
-                <span>Status: {timeline.status}</span>
-                {timeline.sex === "FEMALE" ? (
-                  <>
-                    <span>ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢</span>
-                    <span>
-                      Pregnancy: {pregnancyStatusLabel(timeline.pregnancyStatus)}
-                    </span>
-                  </>
-                ) : null}
+                {profileDetails.map((detail, index) => (
+                  <span key={String(detail)}>
+                    {index > 0 ? " - " : ""}
+                    {detail}
+                  </span>
+                ))}
               </div>
             </div>
 
