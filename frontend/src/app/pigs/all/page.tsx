@@ -274,7 +274,7 @@ export default function AllPigsPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => router.push("/pigs")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                 type="button"
               >
                 Back to Pigs
@@ -282,7 +282,7 @@ export default function AllPigsPage() {
 
               <button
                 onClick={() => router.push("/dashboard")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                 type="button"
               >
                 Back to Dashboard
@@ -454,7 +454,7 @@ export default function AllPigsPage() {
                 <button
                   type="button"
                   onClick={() => router.push("/pregnant-pigs")}
-                  className="mt-3 rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                  className="mt-3 rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                 >
                   View Pregnant Pigs
                 </button>
@@ -566,7 +566,7 @@ export default function AllPigsPage() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => router.push(`/pigs/${p.id}`)}
-                              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                               type="button"
                             >
                               Open
@@ -574,7 +574,7 @@ export default function AllPigsPage() {
 
                             <button
                               onClick={() => router.push(`/pigs/${p.id}#edit`)}
-                              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                               type="button"
                             >
                               Edit

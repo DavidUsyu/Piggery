@@ -194,7 +194,7 @@ export default function EventsPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => router.push("/dashboard")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                 type="button"
               >
                 Back to Dashboard
@@ -202,7 +202,7 @@ export default function EventsPage() {
 
               <button
                 onClick={() => router.push("/pigs")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                 type="button"
               >
                 Go to Pigs
@@ -405,7 +405,7 @@ export default function EventsPage() {
                       <td className="px-3 py-3 whitespace-nowrap">
                         <button
                           onClick={() => router.push(`/pigs/${event.pigId}`)}
-                          className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
+                          className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                           type="button"
                         >
                           Open Pig

@@ -216,7 +216,7 @@ export default function PigGroupsPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => router.push("/pigs")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                 type="button"
               >
                 Back to Pigs
@@ -224,7 +224,7 @@ export default function PigGroupsPage() {
 
               <button
                 onClick={() => router.push("/dashboard")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 transition"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                 type="button"
               >
                 Dashboard
@@ -456,7 +456,7 @@ export default function PigGroupsPage() {
                               <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-2">
                                   <button
-                                    className="rounded-xl border px-3 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-100"
+                                    className="rounded-xl border px-3 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
                                     onClick={() => router.push(`/pigs/${pig.id}`)}
                                     type="button"
                                   >

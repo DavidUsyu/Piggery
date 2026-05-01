@@ -104,14 +104,14 @@ function QuickActionCard({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-2xl border bg-white px-5 py-6 text-left shadow-sm transition hover:bg-gray-50 hover:shadow-md w-full"
+      className="group w-full rounded-2xl border bg-white px-5 py-6 text-left shadow-sm transition-colors hover:border-gray-900 hover:bg-gray-900"
     >
       <div className="flex items-start gap-4">
         <div className="shrink-0 text-3xl leading-none">{emoji}</div>
 
         <div className="min-w-0">
-          <div className="text-lg font-semibold text-gray-900">{title}</div>
-          <div className="mt-2 text-sm leading-6 text-gray-600">
+          <div className="text-lg font-semibold text-gray-900 group-hover:text-white">{title}</div>
+          <div className="mt-2 text-sm leading-6 text-gray-600 group-hover:text-gray-200">
             {subtitle}
           </div>
         </div>
@@ -303,13 +303,13 @@ export default function DashboardPage() {
                 sessionStorage.setItem("start-walkthrough", "true");
                 window.dispatchEvent(new Event("start-feature-walkthrough"));
               }}
-              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
             >
               Start App Tour
             </button>
             <button
               onClick={() => router.push("/forgot-password")}
-              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
             >
               Recover Account
             </button>
@@ -381,7 +381,7 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => router.push("/tasks")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
               >
                 View All
               </button>
@@ -419,9 +419,9 @@ export default function DashboardPage() {
                     key={`${task.pigId}-${task.task}-${task.dueDate}`}
                     type="button"
                     onClick={() => router.push(`/pigs/${task.pigId}`)}
-                    className={`w-full rounded-xl border p-4 text-left transition hover:shadow-sm ${getAlertTone(
+                    className={`w-full rounded-xl border p-4 text-left transition-colors ${getAlertTone(
                       task.status,
-                    )}`}
+                    )} hover:border-gray-900 hover:bg-gray-900 hover:text-white`}
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
@@ -577,7 +577,7 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={() => router.push("/finance")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
               >
                 Open Finance
               </button>

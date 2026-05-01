@@ -81,10 +81,10 @@ function NavCard({
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="group w-full rounded-2xl border bg-white p-5 text-left shadow-sm transition-colors hover:border-gray-900 hover:bg-gray-900"
     >
-      <div className="text-lg font-semibold text-gray-900">{title}</div>
-      <div className="mt-1 text-sm text-gray-600">{subtitle}</div>
+      <div className="text-lg font-semibold text-gray-900 group-hover:text-white">{title}</div>
+      <div className="mt-1 text-sm text-gray-600 group-hover:text-gray-200">{subtitle}</div>
     </button>
   );
 }
@@ -147,7 +147,7 @@ export default function FarmSetupPage() {
             <button
               type="button"
               onClick={() => router.push("/dashboard")}
-              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+              className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
             >
               Back to Dashboard
             </button>
