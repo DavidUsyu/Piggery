@@ -672,10 +672,12 @@ export default function PigProfilePage() {
               <h1 className="mt-1 text-3xl font-bold text-gray-900">
                 #{timeline.tagNumber}
               </h1>
-              <div className="mt-2 flex flex-wrap gap-2 text-sm text-gray-600">
-                {profileDetails.map((detail, index) => (
-                  <span key={String(detail)}>
-                    {index > 0 ? " - " : ""}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {profileDetails.map((detail) => (
+                  <span
+                    key={String(detail)}
+                    className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm font-medium text-gray-700"
+                  >
                     {detail}
                   </span>
                 ))}
@@ -695,7 +697,7 @@ export default function PigProfilePage() {
               <button
                 type="button"
                 onClick={() => router.push("/pigs/all")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
               >
                 All Pigs
               </button>
@@ -703,7 +705,7 @@ export default function PigProfilePage() {
               <button
                 type="button"
                 onClick={() => router.push("/dashboard")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
               >
                 Dashboard
               </button>

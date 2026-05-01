@@ -268,7 +268,7 @@ export default function BulkEventsPage() {
               <button
                 type="button"
                 onClick={() => router.push("/pig-groups")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
               >
                 Pig Groups
               </button>
@@ -276,7 +276,7 @@ export default function BulkEventsPage() {
               <button
                 type="button"
                 onClick={() => router.push("/dashboard")}
-                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
               >
                 Dashboard
               </button>
