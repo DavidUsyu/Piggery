@@ -11,13 +11,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '../auth/auth.jwt.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { FARM_WRITE_ROLES, Roles } from '../auth/roles.decorator';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateBulkEventDto } from './dto/create-bulk-event.dto';
 import { EventsService } from './events.service';
 
 @Controller('events')
-@UseGuards(JwtGuard)
+@UseGuards(JwtGuard, RolesGuard)
 export class EventsController {
   constructor(private eventsService: EventsService) {}
 

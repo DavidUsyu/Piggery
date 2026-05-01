@@ -9,6 +9,7 @@ import {
   Param,
 } from '@nestjs/common';
 import { JwtGuard } from '../auth/auth.jwt.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { FARM_WRITE_ROLES, Roles } from '../auth/roles.decorator';
 import { CreatePigDto } from './dto/create-pig.dto';
 import { UpdatePigDto } from './dto/update-pig.dto';
@@ -16,7 +17,7 @@ import { UpdatePigStatusDto } from './dto/update-pig-status.dto';
 import { PigsService } from './pigs.service';
 
 @Controller('pigs')
-@UseGuards(JwtGuard)
+@UseGuards(JwtGuard, RolesGuard)
 export class PigsController {
   constructor(private pigsService: PigsService) {}
 

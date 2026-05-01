@@ -10,13 +10,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '../auth/auth.jwt.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { FARM_WRITE_ROLES, Roles } from '../auth/roles.decorator';
 import { PigGroupsService } from './pig-groups.service';
 import { CreatePigGroupDto } from './dto/create-pig-group.dto';
 import { AssignPigsDto } from './dto/assign-pigs.dto';
 
 @Controller('pig-groups')
-@UseGuards(JwtGuard)
+@UseGuards(JwtGuard, RolesGuard)
 export class PigGroupsController {
   constructor(private pigGroupsService: PigGroupsService) {}
 

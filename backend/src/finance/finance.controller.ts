@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '../auth/auth.jwt.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { FARM_ADMIN_ROLES, Roles } from '../auth/roles.decorator';
 import { FinanceService } from './finance.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
@@ -19,7 +20,7 @@ import { UpdateSaleDto } from './dto/update-sale.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 
 @Controller('finance')
-@UseGuards(JwtGuard)
+@UseGuards(JwtGuard, RolesGuard)
 export class FinanceController {
   constructor(private financeService: FinanceService) {}
 

@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../auth/auth.jwt.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { FARM_WRITE_ROLES, Roles } from '../auth/roles.decorator';
 import { FeedService } from './feed.service';
 import { CreateFeedTypeDto } from './dto/create-feed-type.dto';
@@ -7,7 +8,7 @@ import { CreateFeedPurchaseDto } from './dto/create-feed-purchase.dto';
 import { CreateFeedUsageDto } from './dto/create-feed-usage.dto';
 
 @Controller('feed')
-@UseGuards(JwtGuard)
+@UseGuards(JwtGuard, RolesGuard)
 export class FeedController {
   constructor(private readonly feedService: FeedService) {}
 
