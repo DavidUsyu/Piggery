@@ -37,7 +37,7 @@ function pregnancyStatusLabel(status: string) {
 }
 
 function farrowingCountdownLabel(daysLeft: number | null) {
-  if (daysLeft === null) return "â€”";
+  if (daysLeft === null) return "-";
   if (daysLeft > 0) return `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
   if (daysLeft === 0) return "Due today";
   return `${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"} overdue`;
@@ -266,7 +266,7 @@ export default function AllPigsPage() {
                 Pig Register
               </h1>
               <p className="mt-2 text-sm text-gray-600">
-                {me?.farmName ?? "Farm"} â€¢ {activePigs.length} active pigs â€¢{" "}
+                {me?.farmName ?? "Farm"} - {activePigs.length} active pigs -{" "}
                 {pregnantPigs.length} pregnant
               </p>
             </div>
@@ -555,7 +555,7 @@ export default function AllPigsPage() {
                         <td className="px-3 py-3 text-gray-900">
                           {p.expectedFarrowingDate
                             ? new Date(p.expectedFarrowingDate).toLocaleDateString()
-                            : "â€”"}
+                            : "-"}
                         </td>
                         <td className="px-3 py-3">
                           <span className={countdownTone(p.farrowingDaysLeft)}>
