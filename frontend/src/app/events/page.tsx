@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, hasClientAuthState } from "@/lib/api";
+import { formatDateTime } from "@/lib/dates";
 
 type Pig = {
   id: string;
@@ -329,7 +330,7 @@ export default function EventsPage() {
                       </td>
 
                       <td className="px-3 py-3 whitespace-nowrap text-gray-900">
-                        {new Date(event.eventDate).toLocaleString()}
+                        {formatDateTime(event.eventDate)}
                       </td>
 
                       <td className="px-3 py-3 text-gray-900">

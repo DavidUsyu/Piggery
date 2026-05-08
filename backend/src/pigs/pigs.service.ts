@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePigDto } from './dto/create-pig.dto';
 import { UpdatePigDto } from './dto/update-pig.dto';
@@ -8,19 +13,41 @@ import { UpdatePigStatusDto } from './dto/update-pig-status.dto';
 export class PigsService {
   constructor(private prisma: PrismaService) {}
 
-  create(farmId: string, dto: CreatePigDto) {
-    return this.prisma.pig.create({
-      data: {
+  async create(farmId: string, dto: CreatePigDto) {
+    const existingTag = await this.prisma.pig.findFirst({
+      where: {
         farmId,
         tagNumber: dto.tagNumber,
-        name: dto.name,
-        sex: dto.sex as any,
-        breed: dto.breed,
-        birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
-        sireId: dto.sireId,
-        damId: dto.damId,
       },
     });
+
+    if (existingTag) {
+      throw new ConflictException('A pig with this tag number already exists');
+    }
+
+    try {
+      return await this.prisma.pig.create({
+        data: {
+          farmId,
+          tagNumber: dto.tagNumber,
+          name: dto.name,
+          sex: dto.sex as any,
+          breed: dto.breed,
+          birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
+          sireId: dto.sireId,
+          damId: dto.damId,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('A pig with this tag number already exists');
+      }
+
+      throw error;
+    }
   }
 
   async list(farmId: string) {
@@ -80,7 +107,7 @@ export class PigsService {
     });
 
     if (!pig) {
-      throw new Error('Pig not found');
+      throw new NotFoundException('Pig not found');
     }
 
     return pig;
@@ -92,7 +119,7 @@ export class PigsService {
     });
 
     if (!pig) {
-      throw new Error('Pig not found');
+      throw new NotFoundException('Pig not found');
     }
 
     if (dto.tagNumber && dto.tagNumber !== pig.tagNumber) {
@@ -105,27 +132,38 @@ export class PigsService {
       });
 
       if (existingTag) {
-        throw new Error('Another pig already uses this tag number');
+        throw new ConflictException('Another pig already uses this tag number');
       }
     }
 
-    return this.prisma.pig.update({
-      where: { id: pigId },
-      data: {
-        tagNumber: dto.tagNumber ?? pig.tagNumber,
-        name: dto.name !== undefined ? dto.name : pig.name,
-        sex: (dto.sex as any) ?? pig.sex,
-        breed: dto.breed !== undefined ? dto.breed : pig.breed,
-        birthDate:
-          dto.birthDate !== undefined
-            ? dto.birthDate
-              ? new Date(dto.birthDate)
-              : null
-            : pig.birthDate,
-        sireId: dto.sireId !== undefined ? dto.sireId : pig.sireId,
-        damId: dto.damId !== undefined ? dto.damId : pig.damId,
-      },
-    });
+    try {
+      return await this.prisma.pig.update({
+        where: { id: pigId },
+        data: {
+          tagNumber: dto.tagNumber ?? pig.tagNumber,
+          name: dto.name !== undefined ? dto.name : pig.name,
+          sex: (dto.sex as any) ?? pig.sex,
+          breed: dto.breed !== undefined ? dto.breed : pig.breed,
+          birthDate:
+            dto.birthDate !== undefined
+              ? dto.birthDate
+                ? new Date(dto.birthDate)
+                : null
+              : pig.birthDate,
+          sireId: dto.sireId !== undefined ? dto.sireId : pig.sireId,
+          damId: dto.damId !== undefined ? dto.damId : pig.damId,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Another pig already uses this tag number');
+      }
+
+      throw error;
+    }
   }
 
   async updateStatus(
@@ -138,7 +176,7 @@ export class PigsService {
     });
 
     if (!pig) {
-      throw new Error('Pig not found');
+      throw new NotFoundException('Pig not found');
     }
 
     const updatedPig = await this.prisma.pig.update({
@@ -168,6 +206,20 @@ export class PigsService {
     return updatedPig;
   }
 
+  async remove(farmId: string, pigId: string) {
+    const pig = await this.prisma.pig.findFirst({
+      where: { id: pigId, farmId },
+    });
+
+    if (!pig) {
+      throw new NotFoundException('Pig not found');
+    }
+
+    await this.prisma.pig.delete({
+      where: { id: pigId },
+    });
+  }
+
   async timeline(farmId: string, pigId: string) {
     const pig = await this.prisma.pig.findFirst({
       where: { id: pigId, farmId },
@@ -179,7 +231,7 @@ export class PigsService {
     });
 
     if (!pig) {
-      throw new Error('Pig not found');
+      throw new NotFoundException('Pig not found');
     }
 
     const ageDays = pig.birthDate

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { apiGet, apiPost, hasClientAuthState } from "@/lib/api";
+import { apiDelete, apiGet, apiPost, hasClientAuthState } from "@/lib/api";
+import { formatDate } from "@/lib/dates";
 import { formatAge, getAgeUnit, type AgeUnit } from "@/lib/preferences";
 
 type Pig = {
@@ -34,6 +35,10 @@ function pregnancyStatusLabel(status: string) {
   if (status === "PREGNANT") return "Pregnant";
   if (status === "RETURNED_TO_HEAT") return "Returned to Heat";
   return status;
+}
+
+function normalizePigValue(value: string | null | undefined) {
+  return (value ?? "").trim().toUpperCase();
 }
 
 function farrowingCountdownLabel(daysLeft: number | null) {
@@ -105,6 +110,7 @@ export default function AllPigsPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deletingPigId, setDeletingPigId] = useState<string | null>(null);
   const [ageUnit, setAgeUnit] = useState<AgeUnit>("days");
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [search, setSearch] = useState("");
@@ -186,13 +192,52 @@ export default function AllPigsPage() {
     }
   }
 
+  async function deletePig(pig: Pig) {
+    const confirmed = window.confirm(
+      `Delete pig #${pig.tagNumber}? This will remove its pig profile and event history.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingPigId(pig.id);
+      setError(null);
+      setMessage("");
+      await apiDelete(`/pigs/${pig.id}`);
+      setMessage(`Pig #${pig.tagNumber} deleted.`);
+      await reloadPigs();
+
+      setTimeout(() => {
+        setMessage("");
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message ?? "Failed to delete pig");
+    } finally {
+      setDeletingPigId(null);
+    }
+  }
+
   const activePigs = useMemo(
-    () => pigs.filter((p) => p.status === "ACTIVE"),
+    () => pigs.filter((p) => normalizePigValue(p.status) === "ACTIVE"),
     [pigs],
   );
 
   const femalePigs = useMemo(
-    () => pigs.filter((p) => p.status === "ACTIVE" && p.sex === "FEMALE"),
+    () =>
+      pigs.filter(
+        (p) =>
+          normalizePigValue(p.status) === "ACTIVE" &&
+          normalizePigValue(p.sex) === "FEMALE",
+      ),
+    [pigs],
+  );
+
+  const malePigs = useMemo(
+    () =>
+      pigs.filter(
+        (p) =>
+          normalizePigValue(p.status) === "ACTIVE" &&
+          normalizePigValue(p.sex) === "MALE",
+      ),
     [pigs],
   );
 
@@ -200,9 +245,9 @@ export default function AllPigsPage() {
     () =>
       pigs.filter(
         (p) =>
-          p.status === "ACTIVE" &&
-          p.sex === "FEMALE" &&
-          p.pregnancyStatus === "PREGNANT",
+          normalizePigValue(p.status) === "ACTIVE" &&
+          normalizePigValue(p.sex) === "FEMALE" &&
+          normalizePigValue(p.pregnancyStatus) === "PREGNANT",
       ),
     [pigs],
   );
@@ -211,7 +256,7 @@ export default function AllPigsPage() {
     () =>
       pigs.filter(
         (p) =>
-          p.status === "ACTIVE" &&
+          normalizePigValue(p.status) === "ACTIVE" &&
           p.farrowingDaysLeft !== null &&
           p.farrowingDaysLeft >= 0 &&
           p.farrowingDaysLeft <= 7,
@@ -232,23 +277,26 @@ export default function AllPigsPage() {
         p.status.toLowerCase().includes(q);
 
       let matchesFilter = true;
+      const sex = normalizePigValue(p.sex);
+      const status = normalizePigValue(p.status);
+      const pregnancyStatus = normalizePigValue(p.pregnancyStatus);
 
       if (filter === "ACTIVE") {
-        matchesFilter = p.status === "ACTIVE";
+        matchesFilter = status === "ACTIVE";
       } else if (filter === "FEMALE") {
-        matchesFilter = p.sex === "FEMALE";
+        matchesFilter = sex === "FEMALE";
       } else if (filter === "MALE") {
-        matchesFilter = p.sex === "MALE";
+        matchesFilter = sex === "MALE";
       } else if (filter === "PREGNANT") {
         matchesFilter =
-          p.status === "ACTIVE" &&
-          p.sex === "FEMALE" &&
-          p.pregnancyStatus === "PREGNANT";
+          status === "ACTIVE" &&
+          sex === "FEMALE" &&
+          pregnancyStatus === "PREGNANT";
       } else if (filter === "RETURNED_TO_HEAT") {
         matchesFilter =
-          p.status === "ACTIVE" &&
-          p.sex === "FEMALE" &&
-          p.pregnancyStatus === "RETURNED_TO_HEAT";
+          status === "ACTIVE" &&
+          sex === "FEMALE" &&
+          pregnancyStatus === "RETURNED_TO_HEAT";
       }
 
       return matchesSearch && matchesFilter;
@@ -303,7 +351,7 @@ export default function AllPigsPage() {
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <SummaryCard
             label="Total Pigs"
             value={String(pigs.length)}
@@ -318,6 +366,11 @@ export default function AllPigsPage() {
             label="Female Pigs"
             value={String(femalePigs.length)}
             helper="Active female pigs"
+          />
+          <SummaryCard
+            label="Male Pigs"
+            value={String(malePigs.length)}
+            helper="Active male pigs"
           />
           <SummaryCard
             label="Due Soon"
@@ -554,7 +607,7 @@ export default function AllPigsPage() {
                         </td>
                         <td className="px-3 py-3 text-gray-900">
                           {p.expectedFarrowingDate
-                            ? new Date(p.expectedFarrowingDate).toLocaleDateString()
+                            ? formatDate(p.expectedFarrowingDate)
                             : "-"}
                         </td>
                         <td className="px-3 py-3">
@@ -578,6 +631,15 @@ export default function AllPigsPage() {
                               type="button"
                             >
                               Edit
+                            </button>
+
+                            <button
+                              onClick={() => deletePig(p)}
+                              disabled={deletingPigId === p.id}
+                              className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-700 hover:bg-red-700 hover:text-white disabled:opacity-60"
+                              type="button"
+                            >
+                              {deletingPigId === p.id ? "Deleting..." : "Delete"}
                             </button>
                           </div>
                         </td>

@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Post,
   Req,
   UseGuards,
@@ -51,5 +53,12 @@ export class PigsController {
     @Body() dto: UpdatePigStatusDto,
   ) {
     return this.pigsService.updateStatus(req.user.farmId, id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @Roles(...FARM_WRITE_ROLES)
+  remove(@Req() req: any, @Param('id') id: string) {
+    return this.pigsService.remove(req.user.farmId, id);
   }
 }

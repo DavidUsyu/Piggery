@@ -102,6 +102,7 @@ model Pig {
   sales    Sale[]
   expenses Expense[]
 
+  @@unique([farmId, tagNumber])
   @@index([farmId])
   @@index([pigGroupId])
 }

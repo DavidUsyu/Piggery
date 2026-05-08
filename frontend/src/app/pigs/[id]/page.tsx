@@ -1,7 +1,14 @@
  "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiDelete, apiGet, apiPatch, apiPost, hasClientAuthState } from "@/lib/api";
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  hasClientAuthState,
+} from "@/lib/api";
+import { formatDate, formatDateTime } from "@/lib/dates";
 import { getAgeUnit, type AgeUnit } from "@/lib/preferences";
 import {
   CartesianGrid,
@@ -288,6 +295,7 @@ export default function PigProfilePage() {
   const [tasks, setTasks] = useState<PigTask[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingPig, setDeletingPig] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [statusNotes, setStatusNotes] = useState("");
   const [formMode, setFormMode] = useState<"quick" | "advanced">("quick");
@@ -376,10 +384,7 @@ export default function PigProfilePage() {
       const d = new Date(e.eventDate);
       const dayKey = d.toISOString().slice(0, 10);
       latestPerDay.set(dayKey, {
-        date: d.toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-        }),
+        date: formatDate(d),
         fullDate: d.toISOString(),
         weight: e.weightKg,
       });
@@ -614,6 +619,26 @@ export default function PigProfilePage() {
     }
   }
 
+  async function deletePig() {
+    if (!timeline) return;
+
+    const confirmed = window.confirm(
+      `Delete pig #${timeline.tagNumber}? This will remove its pig profile and event history.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingPig(true);
+      setError(null);
+      await apiDelete(`/pigs/${id}`);
+      router.push("/pigs/all");
+    } catch (err: any) {
+      setError(err.message ?? "Failed to delete pig");
+    } finally {
+      setDeletingPig(false);
+    }
+  }
+
   async function completeTask(taskType: string) {
     try {
       setError(null);
@@ -709,6 +734,15 @@ export default function PigProfilePage() {
               >
                 Dashboard
               </button>
+
+              <button
+                type="button"
+                onClick={deletePig}
+                disabled={deletingPig}
+                className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-700 hover:bg-red-700 hover:text-white disabled:opacity-60"
+              >
+                {deletingPig ? "Deleting..." : "Delete Pig"}
+              </button>
             </div>
           </div>
 
@@ -735,7 +769,7 @@ export default function PigProfilePage() {
             }
             helper={
               timeline.lastWeight
-                ? new Date(timeline.lastWeight.eventDate).toLocaleDateString()
+                ? formatDate(timeline.lastWeight.eventDate)
                 : undefined
             }
           />
@@ -744,9 +778,9 @@ export default function PigProfilePage() {
             value={pregnancyStatusLabel(timeline.pregnancyStatus)}
             helper={
               timeline.expectedFarrowingDate
-                ? `Expected farrowing: ${new Date(
+                ? `Expected farrowing: ${formatDate(
                     timeline.expectedFarrowingDate,
-                  ).toLocaleDateString()}`
+                  )}`
                 : undefined
             }
           />
@@ -1222,7 +1256,7 @@ export default function PigProfilePage() {
                             {eventLabel(event.type)}
                           </div>
                           <div className="mt-1 text-sm text-gray-600">
-                            {new Date(event.eventDate).toLocaleString()}
+                            {formatDateTime(event.eventDate)}
                           </div>
 
                           <div className="mt-3 flex flex-wrap gap-2 text-sm text-gray-700">
@@ -1405,7 +1439,7 @@ export default function PigProfilePage() {
                       </div>
                       <div className="mt-1 text-sm">{task.reason}</div>
                       <div className="mt-1 text-xs">
-                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                        Due: {formatDate(task.dueDate)}
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">

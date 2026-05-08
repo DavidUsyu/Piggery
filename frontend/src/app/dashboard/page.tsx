@@ -9,6 +9,7 @@ import {
   clearClientAuthState,
   hasClientAuthState,
 } from "@/lib/api";
+import { formatDate } from "@/lib/dates";
 
 type Pig = {
   id: string;
@@ -594,7 +595,7 @@ export default function DashboardPage() {
                       Buyer: {sale.buyerName ?? "-"}
                     </div>
                     <div className="mt-1 text-sm text-gray-600">
-                      {new Date(sale.saleDate).toLocaleDateString()}
+                      {formatDate(sale.saleDate)}
                     </div>
                     <div className="mt-2 font-semibold text-gray-900">
                       KES {sale.totalAmount.toLocaleString()}

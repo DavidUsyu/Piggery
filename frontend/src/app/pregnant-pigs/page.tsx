@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiGet, hasClientAuthState } from "@/lib/api";
+import { formatDate } from "@/lib/dates";
 import { useRouter } from "next/navigation";
 
 type Pig = {
@@ -240,7 +241,7 @@ export default function PregnantPigsPage() {
                       <td className="px-3 py-3 text-gray-900">Pregnant</td>
                       <td className="px-3 py-3 text-gray-900">
                         {p.expectedFarrowingDate
-                          ? new Date(p.expectedFarrowingDate).toLocaleDateString()
+                          ? formatDate(p.expectedFarrowingDate)
                           : "—"}
                       </td>
                       <td className="px-3 py-3">

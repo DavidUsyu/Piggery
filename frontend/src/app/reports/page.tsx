@@ -18,13 +18,14 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { formatDate } from "@/lib/dates";
 
 function exportExcel({ expenses, sales }: any) {
   const workbook = XLSX.utils.book_new();
 
   // Expenses sheet
   const expenseData = expenses.map((e: any) => ({
-    Date: new Date(e.expenseDate).toLocaleDateString(),
+    Date: formatDate(e.expenseDate),
     Category: e.category,
     Amount: Number(e.amount),
     Description: e.description || "",
@@ -35,7 +36,7 @@ function exportExcel({ expenses, sales }: any) {
 
   // Sales sheet
   const salesData = sales.map((s: any) => ({
-    Date: new Date(s.saleDate).toLocaleDateString(),
+    Date: formatDate(s.saleDate),
     Quantity: s.quantity,
     Total: Number(s.totalPrice),
     Buyer: s.buyerName || "",
@@ -62,14 +63,14 @@ function exportPDF({ expenses, sales }: any) {
   doc.text("Farm Report", 14, 15);
 
   doc.setFontSize(10);
-  doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
+  doc.text(`Generated: ${formatDate(new Date())}`, 14, 22);
 
   // Expenses Table
   autoTable(doc, {
     startY: 30,
     head: [["Date", "Category", "Amount", "Description"]],
     body: expenses.map((e: any) => [
-      new Date(e.expenseDate).toLocaleDateString(),
+      formatDate(e.expenseDate),
       e.category,
       `KES ${Number(e.amount).toLocaleString()}`,
       e.description || "-",
@@ -81,7 +82,7 @@ function exportPDF({ expenses, sales }: any) {
     startY: ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 30) + 10,
     head: [["Date", "Quantity", "Total", "Buyer"]],
     body: sales.map((s: any) => [
-      new Date(s.saleDate).toLocaleDateString(),
+      formatDate(s.saleDate),
       s.quantity,
       `KES ${Number(s.totalPrice).toLocaleString()}`,
       s.buyerName || "-",
@@ -608,7 +609,7 @@ export default function ReportsPage() {
                         KES {sale.totalAmount.toLocaleString()}
                       </td>
                       <td className="px-3 py-3 text-gray-900">
-                        {new Date(sale.saleDate).toLocaleDateString()}
+                        {formatDate(sale.saleDate)}
                       </td>
                       <td className="px-3 py-3 text-gray-900">
                         {sale.buyerName ?? "-"}

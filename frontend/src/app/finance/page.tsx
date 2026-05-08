@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost, hasClientAuthState } from "@/lib/api";
+import { formatDate } from "@/lib/dates";
 
 type Pig = {
   id: string;
@@ -601,7 +602,7 @@ export default function FinancePage() {
                       KES {sale.totalAmount.toLocaleString()}
                     </div>
                     <div className="mt-1 text-sm text-gray-600">
-                      {new Date(sale.saleDate).toLocaleDateString()}
+                      {formatDate(sale.saleDate)}
                     </div>
                     <div className="mt-1 text-sm text-gray-600">
                       Buyer: {sale.buyerName ?? "-"}
@@ -697,7 +698,7 @@ export default function FinancePage() {
                   expenses.map((expense) => (
                     <tr key={expense.id} className="border-b align-top">
                       <td className="px-3 py-3 whitespace-nowrap text-gray-900">
-                        {new Date(expense.expenseDate).toLocaleDateString()}
+                        {formatDate(expense.expenseDate)}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-gray-900">
                         {expense.category}

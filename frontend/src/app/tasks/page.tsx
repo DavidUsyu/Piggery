@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, hasClientAuthState } from "@/lib/api";
+import { formatDate } from "@/lib/dates";
 
 type DueTask = {
   pigId: string;
@@ -303,7 +304,7 @@ export default function TasksPage() {
                         </span>
                       </td>
                       <td className="px-3 py-3 text-gray-900">
-                        {new Date(task.dueDate).toLocaleDateString()}
+                        {formatDate(task.dueDate)}
                       </td>
                       <td className="px-3 py-3 text-gray-900">
                         {countdownLabel(task.daysLeft)}
