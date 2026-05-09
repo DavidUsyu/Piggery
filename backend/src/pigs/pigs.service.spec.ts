@@ -100,4 +100,31 @@ describe('PigsService', () => {
 
     expect(prisma.pig.delete).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [28, 'PIGLET'],
+    [29, 'WEANER'],
+    [84, 'WEANER'],
+    [85, 'GROWER'],
+    [132, 'GROWER'],
+    [133, 'FINISHER'],
+  ])('returns %s-day-old pigs as %s', async (ageDays, expectedStage) => {
+    prisma.pig.findFirst.mockResolvedValue({
+      id: 'pig-1',
+      tagNumber: 'A-001',
+      name: null,
+      breed: null,
+      birthDate: new Date(Date.now() - ageDays * 86400000),
+      sex: 'MALE',
+      status: 'ACTIVE',
+      pregnancyStatus: 'NOT_PREGNANT',
+      events: [],
+    });
+
+    await expect(service.timeline('farm-1', 'pig-1')).resolves.toEqual(
+      expect.objectContaining({
+        stage: expectedStage,
+      }),
+    );
+  });
 });

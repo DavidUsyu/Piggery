@@ -9,6 +9,10 @@ type DueTask = {
     | 'WEIGHT_CHECK'
     | 'DEWORMING'
     | 'VACCINATION'
+    | 'TEETH_CLIPPING'
+    | 'TAIL_DOCKING'
+    | 'CASTRATION'
+    | 'IRON_INJECTION'
     | 'PREGNANCY_CHECK'
     | 'FARROWING_EXPECTED'
     | 'REBREED';
@@ -110,22 +114,74 @@ export class TasksService {
           }
         }
 
-        // 3) VACCINATION schedule: sequential at 56, 91, 126 days
-        const vaccinationStages = [
-          { day: 56, label: 'Vaccination 1 (56 days)' },
-          { day: 91, label: 'Vaccination 2 (91 days)' },
-          { day: 126, label: 'Vaccination 3 (126 days)' },
+        const oneTimeCareEvents = [
+          {
+            day: 3,
+            task: 'TEETH_CLIPPING' as const,
+            label: 'Teeth clipping due at day 3.',
+          },
+          {
+            day: 3,
+            task: 'TAIL_DOCKING' as const,
+            label: 'Tail docking due at day 3.',
+          },
+          {
+            day: 21,
+            task: 'CASTRATION' as const,
+            label: 'Castration due at day 21.',
+            sex: 'MALE',
+          },
+          {
+            day: 21,
+            task: 'IRON_INJECTION' as const,
+            label: 'Iron injection due at day 21. Recommended dose: 2ml.',
+          },
         ];
 
-        let completedVaccinations = 0;
+        for (const careEvent of oneTimeCareEvents) {
+          if ('sex' in careEvent && careEvent.sex !== pig.sex) {
+            continue;
+          }
 
-        for (const stage of vaccinationStages) {
+          const due = new Date(pig.birthDate);
+          due.setDate(due.getDate() + careEvent.day);
+
+          const alreadyDone = pig.events.some(
+            (e) =>
+              e.type === careEvent.task &&
+              Math.abs(new Date(e.eventDate).getTime() - due.getTime()) <=
+                7 * 24 * 60 * 60 * 1000,
+          );
+
+          const daysLeft = this.daysUntil(due);
+
+          if (!alreadyDone && daysLeft <= 7) {
+            pushTask({
+              pigId: pig.id,
+              tagNumber: pig.tagNumber,
+              task: careEvent.task,
+              due,
+              reason: careEvent.label,
+            });
+          }
+        }
+
+        // 3) DEWORMING schedule: sequential at 56, 91, 126 days
+        const dewormingStages = [
+          { day: 56, label: '1st deworming due at day 56 (8 weeks of age).' },
+          { day: 91, label: '2nd deworming due at day 91 (13 weeks of age).' },
+          { day: 126, label: '3rd deworming due at day 126 (18 weeks of age).' },
+        ];
+
+        let completedDewormingEvents = 0;
+
+        for (const stage of dewormingStages) {
           const due = new Date(pig.birthDate);
           due.setDate(due.getDate() + stage.day);
 
           const alreadyDone = pig.events.some(
             (e) =>
-              e.type === 'VACCINATION' &&
+              e.type === 'DEWORMING' &&
               Math.abs(
                 new Date(e.eventDate).getTime() - due.getTime(),
               ) <=
@@ -133,48 +189,28 @@ export class TasksService {
           );
 
           if (alreadyDone) {
-            completedVaccinations += 1;
+            completedDewormingEvents += 1;
             continue;
           }
 
           const daysLeft = this.daysUntil(due);
 
           const shouldShow =
-            (completedVaccinations === 0 && stage.day === 56) ||
-            (completedVaccinations === 1 && stage.day === 91) ||
-            (completedVaccinations === 2 && stage.day === 126);
+            (completedDewormingEvents === 0 && stage.day === 56) ||
+            (completedDewormingEvents === 1 && stage.day === 91) ||
+            (completedDewormingEvents === 2 && stage.day === 126);
 
           if (shouldShow && daysLeft <= 7) {
             pushTask({
               pigId: pig.id,
               tagNumber: pig.tagNumber,
-              task: 'VACCINATION',
+              task: 'DEWORMING',
               due,
               reason: stage.label,
             });
           }
 
           break;
-        }
-
-        // 4) DEWORMING starter rule: due day 60 if never done
-        if (!lastEvent('DEWORMING')) {
-          const due = new Date(pig.birthDate);
-          due.setDate(due.getDate() + 60);
-
-          const ageDays = Math.floor(
-            (Date.now() - pig.birthDate.getTime()) / 86400000,
-          );
-
-          if (ageDays >= 45) {
-            pushTask({
-              pigId: pig.id,
-              tagNumber: pig.tagNumber,
-              task: 'DEWORMING',
-              due,
-              reason: 'No DEWORMING recorded yet.',
-            });
-          }
         }
       }
 

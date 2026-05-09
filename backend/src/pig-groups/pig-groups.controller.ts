@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -46,5 +47,12 @@ export class PigGroupsController {
   @Roles(...FARM_WRITE_ROLES)
   removePig(@Req() req: any, @Param('id') id: string, @Param('pigId') pigId: string) {
     return this.pigGroupsService.removePig(req.user.farmId, id, pigId);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @Roles(...FARM_WRITE_ROLES)
+  remove(@Req() req: any, @Param('id') id: string) {
+    return this.pigGroupsService.remove(req.user.farmId, id);
   }
 }

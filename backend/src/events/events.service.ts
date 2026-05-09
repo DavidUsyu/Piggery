@@ -12,6 +12,8 @@ export class EventsService {
     if (type === 'VACCINATION') return 'MEDICINE';
     if (type === 'DEWORMING') return 'MEDICINE';
     if (type === 'TREATMENT') return 'MEDICINE';
+    if (type === 'IRON_INJECTION') return 'MEDICINE';
+    if (type === 'CASTRATION') return 'MEDICINE';
     return null;
   }
 

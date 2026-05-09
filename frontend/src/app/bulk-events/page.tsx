@@ -35,6 +35,10 @@ const EVENT_TYPES = [
   "WEIGHT",
   "VACCINATION",
   "DEWORMING",
+  "TEETH_CLIPPING",
+  "TAIL_DOCKING",
+  "CASTRATION",
+  "IRON_INJECTION",
   "TREATMENT",
   "SALE",
   "NOTE",
@@ -82,6 +86,10 @@ function eventLabel(type: string) {
   if (type === "WEIGHT") return "Weight";
   if (type === "VACCINATION") return "Vaccination";
   if (type === "DEWORMING") return "Deworming";
+  if (type === "TEETH_CLIPPING") return "Teeth Clipping";
+  if (type === "TAIL_DOCKING") return "Tail Docking";
+  if (type === "CASTRATION") return "Castration";
+  if (type === "IRON_INJECTION") return "Iron Injection";
   if (type === "TREATMENT") return "Treatment";
   if (type === "SALE") return "Sale";
   if (type === "NOTE") return "Note";
@@ -89,18 +97,25 @@ function eventLabel(type: string) {
 }
 
 function showMedicineFields(type: string) {
-  return ["VACCINATION", "DEWORMING", "TREATMENT"].includes(type);
+  return ["VACCINATION", "DEWORMING", "TREATMENT", "IRON_INJECTION"].includes(type);
 }
 
 function showCostField(type: string) {
-  return ["VACCINATION", "DEWORMING", "TREATMENT", "SALE"].includes(type);
+  return [
+    "VACCINATION",
+    "DEWORMING",
+    "TREATMENT",
+    "IRON_INJECTION",
+    "CASTRATION",
+    "SALE",
+  ].includes(type);
 }
 
 function costHelper(type: string) {
   if (type === "SALE") {
     return "For bulk sale, this is treated as total shared amount and will be split across selected pigs.";
   }
-  if (["VACCINATION", "DEWORMING", "TREATMENT"].includes(type)) {
+  if (["VACCINATION", "DEWORMING", "TREATMENT", "IRON_INJECTION", "CASTRATION"].includes(type)) {
     return "For bulk events, this is treated as total shared cost and will be split across selected pigs.";
   }
   return "";
@@ -332,7 +347,11 @@ export default function BulkEventsPage() {
                 <select
                   value={form.type}
                   onChange={(e) =>
-                    setForm((prev) => ({ ...prev, type: e.target.value }))
+                    setForm((prev) => ({
+                      ...prev,
+                      type: e.target.value,
+                      dose: e.target.value === "IRON_INJECTION" ? "2ml" : prev.dose,
+                    }))
                   }
                   className="w-full rounded-xl border px-4 py-3 text-gray-900"
                 >

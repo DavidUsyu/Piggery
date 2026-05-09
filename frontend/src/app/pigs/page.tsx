@@ -17,6 +17,28 @@ type Pig = {
   farrowingDaysLeft: number | null;
 };
 
+type PigStage = "Piglet" | "Weaner" | "Grower" | "Finisher" | "No Birth Date";
+
+function normalizePigValue(value: string | null | undefined) {
+  return (value ?? "").trim().toUpperCase();
+}
+
+function getPigStage(birthDate: string | null): PigStage {
+  if (!birthDate) return "No Birth Date";
+
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return "No Birth Date";
+
+  const ageDays = Math.max(
+    1,
+    Math.floor((Date.now() - birth.getTime()) / 86400000),
+  );
+
+  if (ageDays <= 28) return "Piglet";
+  if (ageDays <= 84) return "Weaner";
+  if (ageDays <= 132) return "Grower";
+  return "Finisher";
+}
 
 function PigNavCard({
   title,
@@ -89,17 +111,27 @@ export default function PigsHomePage() {
   }, [router]);
 
   const activePigs = useMemo(
-    () => pigs.filter((p) => p.status === "ACTIVE"),
+    () => pigs.filter((p) => normalizePigValue(p.status) === "ACTIVE"),
     [pigs],
   );
 
   const femalePigs = useMemo(
-    () => pigs.filter((p) => p.status === "ACTIVE" && p.sex === "FEMALE"),
+    () =>
+      pigs.filter(
+        (p) =>
+          normalizePigValue(p.status) === "ACTIVE" &&
+          normalizePigValue(p.sex) === "FEMALE",
+      ),
     [pigs],
   );
 
   const malePigs = useMemo(
-    () => pigs.filter((p) => p.status === "ACTIVE" && p.sex === "MALE"),
+    () =>
+      pigs.filter(
+        (p) =>
+          normalizePigValue(p.status) === "ACTIVE" &&
+          normalizePigValue(p.sex) === "MALE",
+      ),
     [pigs],
   );
 
@@ -107,9 +139,9 @@ export default function PigsHomePage() {
     () =>
       pigs.filter(
         (p) =>
-          p.status === "ACTIVE" &&
-          p.sex === "FEMALE" &&
-          p.pregnancyStatus === "PREGNANT",
+          normalizePigValue(p.status) === "ACTIVE" &&
+          normalizePigValue(p.sex) === "FEMALE" &&
+          normalizePigValue(p.pregnancyStatus) === "PREGNANT",
       ),
     [pigs],
   );
@@ -118,12 +150,28 @@ export default function PigsHomePage() {
     () =>
       pigs.filter(
         (p) =>
-          p.status === "ACTIVE" &&
-          p.sex === "FEMALE" &&
-          p.pregnancyStatus === "RETURNED_TO_HEAT",
+          normalizePigValue(p.status) === "ACTIVE" &&
+          normalizePigValue(p.sex) === "FEMALE" &&
+          normalizePigValue(p.pregnancyStatus) === "RETURNED_TO_HEAT",
       ),
     [pigs],
   );
+
+  const pigStageCounts = useMemo(() => {
+    const counts: Record<PigStage, number> = {
+      Piglet: 0,
+      Weaner: 0,
+      Grower: 0,
+      Finisher: 0,
+      "No Birth Date": 0,
+    };
+
+    for (const pig of activePigs) {
+      counts[getPigStage(pig.birthDate)] += 1;
+    }
+
+    return counts;
+  }, [activePigs]);
 
   if (loading) {
     return <div className="p-6">Loading pigs...</div>;
@@ -158,8 +206,16 @@ export default function PigsHomePage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <SmallStatCard label="Total Pigs" value={String(pigs.length)} />
           <SmallStatCard label="Active" value={String(activePigs.length)} />
+          <SmallStatCard label="Piglets" value={String(pigStageCounts.Piglet)} />
+          <SmallStatCard label="Weaners" value={String(pigStageCounts.Weaner)} />
+          <SmallStatCard label="Finishers" value={String(pigStageCounts.Finisher)} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <SmallStatCard label="Females" value={String(femalePigs.length)} />
           <SmallStatCard label="Males" value={String(malePigs.length)} />
+          <SmallStatCard label="Growers" value={String(pigStageCounts.Grower)} />
+          <SmallStatCard label="No Birth Date" value={String(pigStageCounts["No Birth Date"])} />
           <SmallStatCard label="Returned to Heat" value={String(returnedToHeatPigs.length)} />
         </div>
 
@@ -192,7 +248,7 @@ export default function PigsHomePage() {
             Use this page as a clean entry point into pig management.
           </p>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
             <div className="rounded-xl border p-4">
               <div className="text-sm font-medium text-gray-500">
                 Female Pig Status
@@ -211,6 +267,36 @@ export default function PigsHomePage() {
                 <div className="flex items-center justify-between">
                   <span>All active females</span>
                   <span className="font-semibold">{femalePigs.length}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border p-4">
+              <div className="text-sm font-medium text-gray-500">
+                Pig Stage Counts
+              </div>
+              <div className="mt-3 space-y-2 text-sm text-gray-700">
+                <div className="flex items-center justify-between">
+                  <span>Piglets</span>
+                  <span className="font-semibold">{pigStageCounts.Piglet}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Weaners</span>
+                  <span className="font-semibold">{pigStageCounts.Weaner}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Growers</span>
+                  <span className="font-semibold">{pigStageCounts.Grower}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Finishers</span>
+                  <span className="font-semibold">{pigStageCounts.Finisher}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>No birth date</span>
+                  <span className="font-semibold">
+                    {pigStageCounts["No Birth Date"]}
+                  </span>
                 </div>
               </div>
             </div>

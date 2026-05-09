@@ -20,8 +20,45 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { formatDate } from "@/lib/dates";
 
-function exportExcel({ expenses, sales }: any) {
+type PigStageName =
+  | "Piglet"
+  | "Weaner"
+  | "Grower"
+  | "Finisher"
+  | "No Birth Date";
+
+type PigStageData = {
+  stage: PigStageName;
+  count: number;
+};
+
+function getPigStage(birthDate: string | null): PigStageName {
+  if (!birthDate) return "No Birth Date";
+
+  const birth = new Date(birthDate);
+  if (Number.isNaN(birth.getTime())) return "No Birth Date";
+
+  const ageDays = Math.max(
+    1,
+    Math.floor((Date.now() - birth.getTime()) / 86400000),
+  );
+
+  if (ageDays <= 28) return "Piglet";
+  if (ageDays <= 84) return "Weaner";
+  if (ageDays <= 132) return "Grower";
+  return "Finisher";
+}
+
+function exportExcel({ expenses, sales, pigStages }: any) {
   const workbook = XLSX.utils.book_new();
+
+  const pigStageSheet = XLSX.utils.json_to_sheet(
+    pigStages.map((item: PigStageData) => ({
+      Stage: item.stage,
+      Pigs: item.count,
+    })),
+  );
+  XLSX.utils.book_append_sheet(workbook, pigStageSheet, "Pig Stages");
 
   // Expenses sheet
   const expenseData = expenses.map((e: any) => ({
@@ -38,7 +75,7 @@ function exportExcel({ expenses, sales }: any) {
   const salesData = sales.map((s: any) => ({
     Date: formatDate(s.saleDate),
     Quantity: s.quantity,
-    Total: Number(s.totalPrice),
+    Total: Number(s.totalAmount ?? s.totalPrice ?? 0),
     Buyer: s.buyerName || "",
   }));
 
@@ -56,7 +93,7 @@ function exportExcel({ expenses, sales }: any) {
     "farm-report.xlsx"
   );
 }
-function exportPDF({ expenses, sales }: any) {
+function exportPDF({ expenses, sales, pigStages }: any) {
   const doc = new jsPDF();
 
   doc.setFontSize(16);
@@ -65,9 +102,15 @@ function exportPDF({ expenses, sales }: any) {
   doc.setFontSize(10);
   doc.text(`Generated: ${formatDate(new Date())}`, 14, 22);
 
-  // Expenses Table
   autoTable(doc, {
     startY: 30,
+    head: [["Stage", "Pigs"]],
+    body: pigStages.map((item: PigStageData) => [item.stage, item.count]),
+  });
+
+  // Expenses Table
+  autoTable(doc, {
+    startY: ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 30) + 10,
     head: [["Date", "Category", "Amount", "Description"]],
     body: expenses.map((e: any) => [
       formatDate(e.expenseDate),
@@ -84,7 +127,7 @@ function exportPDF({ expenses, sales }: any) {
     body: sales.map((s: any) => [
       formatDate(s.saleDate),
       s.quantity,
-      `KES ${Number(s.totalPrice).toLocaleString()}`,
+      `KES ${Number(s.totalAmount ?? s.totalPrice ?? 0).toLocaleString()}`,
       s.buyerName || "-",
     ]),
   });
@@ -252,6 +295,26 @@ export default function ReportsPage() {
     [events],
   );
 
+  const pigStageChartData = useMemo<PigStageData[]>(() => {
+    const counts = new Map<PigStageName, number>([
+      ["Piglet", 0],
+      ["Weaner", 0],
+      ["Grower", 0],
+      ["Finisher", 0],
+      ["No Birth Date", 0],
+    ]);
+
+    for (const pig of activePigs) {
+      const stage = getPigStage(pig.birthDate);
+      counts.set(stage, (counts.get(stage) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries()).map(([stage, count]) => ({
+      stage,
+      count,
+    }));
+  }, [activePigs]);
+
   const eventTypeChartData = useMemo(() => {
     const counts = new Map<string, number>();
 
@@ -352,6 +415,7 @@ export default function ReportsPage() {
                       exportPDF({
                         expenses,
                         sales: finance?.recentSales ?? [],
+                        pigStages: pigStageChartData,
                       })
                     }
                     className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
@@ -364,6 +428,7 @@ export default function ReportsPage() {
                       exportExcel({
                         expenses,
                         sales: finance?.recentSales ?? [],
+                        pigStages: pigStageChartData,
                       })
                     }
                     className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100"
@@ -479,6 +544,47 @@ export default function ReportsPage() {
             </div>
           </SectionCard>
         </div>
+
+        <SectionCard
+          title="Pig Stages"
+          subtitle="Active pigs grouped by age stage using the current farm stage rules."
+        >
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+            <div className="h-80">
+              {pigStageChartData.every((item) => item.count === 0) ? (
+                <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
+                  No active pig stage data yet.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={pigStageChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="stage" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" name="Pigs" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              {pigStageChartData.map((item) => (
+                <div
+                  key={item.stage}
+                  className="flex items-center justify-between rounded-xl border p-4"
+                >
+                  <span className="text-sm font-medium text-gray-700">
+                    {item.stage}
+                  </span>
+                  <span className="text-lg font-bold text-gray-900">
+                    {item.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </SectionCard>
 
         <div className="grid gap-6 xl:grid-cols-2">
           <SectionCard
@@ -634,6 +740,10 @@ function formatEventType(type: string) {
   if (type === "WEIGHT") return "Weight";
   if (type === "VACCINATION") return "Vaccination";
   if (type === "DEWORMING") return "Deworming";
+  if (type === "TEETH_CLIPPING") return "Teeth Clipping";
+  if (type === "TAIL_DOCKING") return "Tail Docking";
+  if (type === "CASTRATION") return "Castration";
+  if (type === "IRON_INJECTION") return "Iron Injection";
   if (type === "BREEDING") return "Breeding";
   if (type === "PREGNANCY_CHECK") return "Pregnancy Check";
   if (type === "FARROWING") return "Farrowing";

@@ -20,10 +20,16 @@ export class CreateBulkEventDto {
   pigGroupId?: string;
 
   @IsIn([
+    'WEIGHT',
     'VACCINATION',
     'DEWORMING',
+    'TEETH_CLIPPING',
+    'TAIL_DOCKING',
+    'CASTRATION',
+    'IRON_INJECTION',
     'WEANING',
     'TREATMENT',
+    'SALE',
     'NOTE',
   ])
   type!: string;

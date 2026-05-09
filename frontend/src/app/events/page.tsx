@@ -37,6 +37,10 @@ function eventLabel(type: string) {
   if (type === "WEIGHT") return "Weight";
   if (type === "VACCINATION") return "Vaccination";
   if (type === "DEWORMING") return "Deworming";
+  if (type === "TEETH_CLIPPING") return "Teeth Clipping";
+  if (type === "TAIL_DOCKING") return "Tail Docking";
+  if (type === "CASTRATION") return "Castration";
+  if (type === "IRON_INJECTION") return "Iron Injection";
   if (type === "BREEDING") return "Breeding";
   if (type === "PREGNANCY_CHECK") return "Pregnancy Check";
   if (type === "FARROWING") return "Farrowing";
@@ -54,6 +58,10 @@ const EVENT_TYPES = [
   "WEIGHT",
   "VACCINATION",
   "DEWORMING",
+  "TEETH_CLIPPING",
+  "TAIL_DOCKING",
+  "CASTRATION",
+  "IRON_INJECTION",
   "BREEDING",
   "PREGNANCY_CHECK",
   "FARROWING",

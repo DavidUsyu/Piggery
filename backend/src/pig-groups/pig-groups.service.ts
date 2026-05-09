@@ -136,4 +136,18 @@ export class PigGroupsService {
 
     return { message: 'Pig removed from group' };
   }
+
+  async remove(farmId: string, groupId: string) {
+    const group = await this.prisma.pigGroup.findFirst({
+      where: { id: groupId, farmId },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Pig group not found');
+    }
+
+    await this.prisma.pigGroup.delete({
+      where: { id: groupId },
+    });
+  }
 }

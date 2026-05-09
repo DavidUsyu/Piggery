@@ -113,6 +113,28 @@ const ACTION_CONFIG: Record<
     helper: "Record deworming and auto-sync the cost to finance",
     costLabel: "Deworming Cost",
   },
+  TEETH_CLIPPING: {
+    label: "Teeth Clipping",
+    emoji: "TC",
+    helper: "Record teeth clipping for a piglet",
+  },
+  TAIL_DOCKING: {
+    label: "Tail Docking",
+    emoji: "TD",
+    helper: "Record tail docking for a piglet",
+  },
+  CASTRATION: {
+    label: "Castration",
+    emoji: "CS",
+    helper: "Record castration for a male piglet",
+    costLabel: "Castration Cost",
+  },
+  IRON_INJECTION: {
+    label: "Iron Injection",
+    emoji: "Fe",
+    helper: "Record iron injection. Recommended dose: 2ml",
+    costLabel: "Iron Injection Cost",
+  },
   VACCINATION: {
     label: "Vaccinate",
     emoji: "VX",
@@ -169,6 +191,10 @@ function eventLabel(type: string) {
   if (type === "WEIGHT") return "Weight";
   if (type === "VACCINATION") return "Vaccination";
   if (type === "DEWORMING") return "Deworming";
+  if (type === "TEETH_CLIPPING") return "Teeth Clipping";
+  if (type === "TAIL_DOCKING") return "Tail Docking";
+  if (type === "CASTRATION") return "Castration";
+  if (type === "IRON_INJECTION") return "Iron Injection";
   if (type === "BREEDING") return "Breeding";
   if (type === "PREGNANCY_CHECK") return "Pregnancy Check";
   if (type === "FARROWING") return "Farrowing";
@@ -186,6 +212,10 @@ function taskDisplayName(taskType: string) {
   if (taskType === "WEIGHT_CHECK") return "Weight Check";
   if (taskType === "VACCINATION") return "Vaccination";
   if (taskType === "DEWORMING") return "Deworming";
+  if (taskType === "TEETH_CLIPPING") return "Teeth Clipping";
+  if (taskType === "TAIL_DOCKING") return "Tail Docking";
+  if (taskType === "CASTRATION") return "Castration";
+  if (taskType === "IRON_INJECTION") return "Iron Injection";
   if (taskType === "WEANING") return "Weaning";
   if (taskType === "PREGNANCY_CHECK") return "Pregnancy Check";
   if (taskType === "FARROWING_EXPECTED") return "Expected Farrowing";
@@ -198,6 +228,10 @@ function taskRequiresForm(taskType: string) {
     "WEIGHT_CHECK",
     "VACCINATION",
     "DEWORMING",
+    "TEETH_CLIPPING",
+    "TAIL_DOCKING",
+    "CASTRATION",
+    "IRON_INJECTION",
     "PREGNANCY_CHECK",
     "REBREED",
   ].includes(taskType);
@@ -221,7 +255,7 @@ function showWeightField(type: string) {
 }
 
 function showMedicationFields(type: string) {
-  return ["VACCINATION", "DEWORMING", "TREATMENT"].includes(type);
+  return ["VACCINATION", "DEWORMING", "TREATMENT", "IRON_INJECTION"].includes(type);
 }
 
 function showBreedingFields(type: string) {
@@ -237,7 +271,14 @@ function showFarrowingFields(type: string) {
 }
 
 function showCostField(type: string) {
-  return ["VACCINATION", "DEWORMING", "TREATMENT", "SALE"].includes(type);
+  return [
+    "VACCINATION",
+    "DEWORMING",
+    "TREATMENT",
+    "IRON_INJECTION",
+    "CASTRATION",
+    "SALE",
+  ].includes(type);
 }
 
 function statusTone(status: PigTask["status"]) {
@@ -348,9 +389,21 @@ export default function PigProfilePage() {
 
   const quickActions = useMemo(() => {
     if (!timeline) return [];
-    const common = ["WEIGHT", "DEWORMING", "VACCINATION", "TREATMENT", "SALE"];
+    const common = [
+      "WEIGHT",
+      "DEWORMING",
+      "TEETH_CLIPPING",
+      "TAIL_DOCKING",
+      "IRON_INJECTION",
+      "VACCINATION",
+      "TREATMENT",
+      "SALE",
+    ];
+    const maleOnly = ["CASTRATION"];
     const femaleOnly = ["BREEDING", "PREGNANCY_CHECK", "FARROWING", "WEANING"];
-    return timeline.sex === "FEMALE" ? [...common, ...femaleOnly] : common;
+    return timeline.sex === "FEMALE"
+      ? [...common, ...femaleOnly]
+      : [...common, ...maleOnly];
   }, [timeline]);
 
   const availableAdvancedTypes = useMemo(() => {
@@ -358,13 +411,17 @@ export default function PigProfilePage() {
     const base = [
       "WEIGHT",
       "DEWORMING",
+      "TEETH_CLIPPING",
+      "TAIL_DOCKING",
+      "IRON_INJECTION",
       "VACCINATION",
       "TREATMENT",
       "SALE",
       "NOTE",
     ];
+    const maleOnly = ["CASTRATION"];
     const femaleOnly = ["BREEDING", "PREGNANCY_CHECK", "FARROWING", "WEANING"];
-    return timeline.sex === "FEMALE" ? [...base, ...femaleOnly] : base;
+    return timeline.sex === "FEMALE" ? [...base, ...femaleOnly] : [...base, ...maleOnly];
   }, [timeline]);
 
   const weightData = useMemo(() => {
@@ -491,6 +548,10 @@ export default function PigProfilePage() {
       base.notes = "Recorded from quick sale action";
     }
 
+    if (type === "IRON_INJECTION") {
+      base.dose = "2ml";
+    }
+
     setForm(base);
 
     document
@@ -535,6 +596,7 @@ export default function PigProfilePage() {
           : taskType === "REBREED"
             ? "Created because the pig returned to heat. Record a new breeding event."
             : `Created from task: ${taskType}`,
+      dose: eventType === "IRON_INJECTION" ? "2ml" : "",
     });
 
     document

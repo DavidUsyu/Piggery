@@ -239,15 +239,13 @@ export class PigsService {
       : 0;
 
     const stage =
-      ageDays <= 35
+      ageDays <= 28
         ? 'PIGLET'
-        : ageDays <= 70
+        : ageDays <= 84
           ? 'WEANER'
-          : ageDays <= 140
+          : ageDays <= 132
             ? 'GROWER'
-            : ageDays <= 180
-              ? 'FINISHER'
-              : 'ADULT';
+            : 'FINISHER';
 
     const lastWeight = pig.events.find((e) => e.type === 'WEIGHT');
 
@@ -281,7 +279,7 @@ export class PigsService {
         );
       }
 
-      if (stage === 'ADULT' && pig.sex === 'FEMALE') {
+      if (stage === 'FINISHER' && pig.sex === 'FEMALE') {
         recommendations.push(
           'Monitor reproductive cycle and record breeding events when applicable.',
         );

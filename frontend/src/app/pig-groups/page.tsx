@@ -67,6 +67,7 @@ export default function PigGroupsPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -160,6 +161,27 @@ export default function PigGroupsPage() {
       await loadData();
     } catch (err: any) {
       setError(err.message ?? "Failed to remove pig from group");
+    }
+  }
+
+  async function deleteGroup(group: PigGroup) {
+    const confirmed = window.confirm(
+      `Delete pig group "${group.name}"? The pigs will remain in the register and become ungrouped.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingGroupId(group.id);
+      setError(null);
+      setMessage("");
+      await apiDelete(`/pig-groups/${group.id}`);
+      setSelectedGroupId((current) => (current === group.id ? "" : current));
+      setMessage(`Pig group "${group.name}" deleted.`);
+      await loadData();
+    } catch (err: any) {
+      setError(err.message ?? "Failed to delete pig group");
+    } finally {
+      setDeletingGroupId(null);
     }
   }
 
@@ -405,8 +427,19 @@ export default function PigGroupsPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border px-3 py-2 text-sm text-gray-900">
-                      {group.pigs.length} pig(s)
+                    <div className="flex flex-wrap gap-2">
+                      <div className="rounded-xl border px-3 py-2 text-sm text-gray-900">
+                        {group.pigs.length} pig(s)
+                      </div>
+
+                      <button
+                        className="rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-700 hover:bg-red-700 hover:text-white disabled:opacity-60"
+                        disabled={deletingGroupId === group.id}
+                        onClick={() => deleteGroup(group)}
+                        type="button"
+                      >
+                        {deletingGroupId === group.id ? "Deleting..." : "Delete Group"}
+                      </button>
                     </div>
                   </div>
 

@@ -21,6 +21,10 @@ function taskDisplayName(taskType: string) {
   if (taskType === "WEIGHT_CHECK") return "Weight Check";
   if (taskType === "VACCINATION") return "Vaccination";
   if (taskType === "DEWORMING") return "Deworming";
+  if (taskType === "TEETH_CLIPPING") return "Teeth Clipping";
+  if (taskType === "TAIL_DOCKING") return "Tail Docking";
+  if (taskType === "CASTRATION") return "Castration";
+  if (taskType === "IRON_INJECTION") return "Iron Injection";
   if (taskType === "WEANING") return "Weaning";
   if (taskType === "PREGNANCY_CHECK") return "Pregnancy Check";
   if (taskType === "FARROWING_EXPECTED") return "Expected Farrowing";
