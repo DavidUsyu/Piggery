@@ -801,7 +801,7 @@ export default function PigProfilePage() {
                 type="button"
                 onClick={deletePig}
                 disabled={deletingPig}
-                className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-700 hover:bg-red-700 hover:text-white disabled:opacity-60"
+                className="min-h-11 w-full rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-700 hover:bg-red-700 hover:text-white disabled:opacity-60 sm:w-auto"
               >
                 {deletingPig ? "Deleting..." : "Delete Pig"}
               </button>

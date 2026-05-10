@@ -437,7 +437,67 @@ export default function PregnantPigsPage() {
               No pregnant pigs found.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="space-y-3 md:hidden">
+                {filteredPigs.map((p) => (
+                  <div key={p.id} className="rounded-xl border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-base font-semibold text-gray-900">
+                          #{p.tagNumber}
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          {p.name ?? "No name"} - {p.breed ?? "No breed"}
+                        </div>
+                      </div>
+                      <span className={countdownTone(p.farrowingDaysLeft)}>
+                        {farrowingCountdownLabel(p.farrowingDaysLeft)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 text-sm text-gray-700">
+                      <div>
+                        Pregnancy: {pregnancyStatusLabel(p.pregnancyStatus)}
+                      </div>
+                      <div>
+                        Expected Farrowing:{" "}
+                        {p.expectedFarrowingDate
+                          ? formatDate(p.expectedFarrowingDate)
+                          : "-"}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      <button
+                        onClick={() => router.push(`/pigs/${p.id}`)}
+                        className="min-h-11 rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                        type="button"
+                      >
+                        Open
+                      </button>
+
+                      <button
+                        onClick={() => startEditing(p)}
+                        className="min-h-11 rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                        type="button"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        onClick={() => deletePig(p)}
+                        disabled={deletingPigId === p.id}
+                        className="min-h-11 rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-60"
+                        type="button"
+                      >
+                        {deletingPigId === p.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="min-w-[950px] w-full text-sm">
                 <thead>
                   <tr className="border-b">
@@ -502,6 +562,7 @@ export default function PregnantPigsPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </SectionCard>
       </div>
