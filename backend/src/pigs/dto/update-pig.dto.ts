@@ -29,4 +29,8 @@ export class UpdatePigDto {
   @IsOptional()
   @IsString()
   damId?: string;
+
+  @IsOptional()
+  @IsIn(['NOT_PREGNANT', 'PREGNANT', 'RETURNED_TO_HEAT'])
+  pregnancyStatus?: 'NOT_PREGNANT' | 'PREGNANT' | 'RETURNED_TO_HEAT';
 }

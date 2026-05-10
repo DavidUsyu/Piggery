@@ -137,12 +137,14 @@ export class PigsService {
     }
 
     try {
+      const nextSex = (dto.sex as any) ?? pig.sex;
+
       return await this.prisma.pig.update({
         where: { id: pigId },
         data: {
           tagNumber: dto.tagNumber ?? pig.tagNumber,
           name: dto.name !== undefined ? dto.name : pig.name,
-          sex: (dto.sex as any) ?? pig.sex,
+          sex: nextSex,
           breed: dto.breed !== undefined ? dto.breed : pig.breed,
           birthDate:
             dto.birthDate !== undefined
@@ -152,6 +154,10 @@ export class PigsService {
               : pig.birthDate,
           sireId: dto.sireId !== undefined ? dto.sireId : pig.sireId,
           damId: dto.damId !== undefined ? dto.damId : pig.damId,
+          pregnancyStatus:
+            nextSex === 'MALE'
+              ? 'NOT_PREGNANT'
+              : (dto.pregnancyStatus as any) ?? pig.pregnancyStatus,
         },
       });
     } catch (error) {
