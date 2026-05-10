@@ -233,8 +233,8 @@ export default function FinancePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <div className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto max-w-7xl space-y-6 pb-10">
         <div className="rounded-2xl border bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -657,7 +657,45 @@ export default function FinancePage() {
             </p>
           </div>
 
-          <div className="mt-4 overflow-x-auto">
+          {expenses.length === 0 ? (
+            <div className="mt-4 rounded-xl border border-dashed p-6 text-center text-gray-500 md:hidden">
+              No expenses recorded yet.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3 md:hidden">
+              {expenses.map((expense) => (
+                <div key={expense.id} className="rounded-xl border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-base font-semibold text-gray-900">
+                        {expense.category}
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {formatDate(expense.expenseDate)}
+                      </div>
+                    </div>
+                    <div className="text-right text-sm font-semibold text-gray-900">
+                      KES {expense.amount.toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 text-sm text-gray-700">
+                    <div>Pig: {expense.pig?.tagNumber ?? "-"}</div>
+                    <div>Vendor: {expense.vendor ?? "-"}</div>
+                    <div>Description: {expense.description ?? "-"}</div>
+                  </div>
+
+                  <div className="mt-3">
+                    <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                      {getExpenseSourceLabel(expense)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 hidden overflow-x-auto md:block">
             <table className="min-w-225 w-full text-sm">
               <thead>
                 <tr className="border-b">

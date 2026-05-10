@@ -264,7 +264,49 @@ export default function TasksPage() {
               No tasks found for this filter.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="space-y-3 md:hidden">
+                {filteredTasks.map((task) => (
+                  <div
+                    key={`${task.pigId}-${task.task}-${task.dueDate}`}
+                    className="rounded-xl border p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-base font-semibold text-gray-900">
+                          {taskDisplayName(task.task)}
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          Pig: {task.tagNumber}
+                        </div>
+                      </div>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs ${statusBadgeClasses(
+                          task.status,
+                        )}`}
+                      >
+                        {task.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 text-sm text-gray-700">
+                      <div>Due: {formatDate(task.dueDate)}</div>
+                      <div>{countdownLabel(task.daysLeft)}</div>
+                      <div>{task.reason}</div>
+                    </div>
+
+                    <button
+                      onClick={() => router.push(`/pigs/${task.pigId}`)}
+                      className="mt-4 min-h-11 w-full rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                      type="button"
+                    >
+                      Open Pig
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="min-w-[980px] w-full text-sm">
                 <thead>
                   <tr className="border-b">
@@ -328,6 +370,7 @@ export default function TasksPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </SectionCard>
       </div>

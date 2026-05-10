@@ -400,7 +400,37 @@ export default function FeedPage() {
           title="Current Feed Stock"
           subtitle="View your inventory"
         >
-          <div className="overflow-x-auto">
+          {purchases.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-6 text-center text-gray-500 md:hidden">
+              No feed purchases recorded yet.
+            </div>
+          ) : (
+            <div className="space-y-3 md:hidden">
+              {purchases.map((item) => (
+                <div key={item.id} className="rounded-xl border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-base font-semibold text-gray-900">
+                        {item.feedType.name}
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        Bought: {formatNumber(item.quantityBought)} {item.feedType.unit}
+                      </div>
+                    </div>
+                    <div className="text-right text-sm font-semibold text-gray-900">
+                      KES {Math.round(Number(item.totalCost)).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-sm text-gray-700">
+                    Left: {formatNumber(item.quantityLeft)} {item.feedType.unit}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-[800px] w-full text-sm">
               <thead>
                 <tr className="border-b">

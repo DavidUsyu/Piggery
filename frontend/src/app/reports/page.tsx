@@ -687,7 +687,31 @@ export default function ReportsPage() {
           subtitle="Latest sales captured in finance."
         >
           {finance?.recentSales?.length ? (
-            <div className="overflow-x-auto">
+            <>
+              <div className="space-y-3 md:hidden">
+                {finance.recentSales.map((sale) => (
+                  <div key={sale.id} className="rounded-xl border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-base font-semibold text-gray-900">
+                          {sale.pig?.tagNumber ?? "General Sale"}
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          {formatDate(sale.saleDate)}
+                        </div>
+                      </div>
+                      <div className="text-right text-sm font-semibold text-gray-900">
+                        KES {sale.totalAmount.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="mt-3 text-sm text-gray-700">
+                      Buyer: {sale.buyerName ?? "-"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="min-w-[700px] w-full text-sm">
                 <thead>
                   <tr className="border-b">
@@ -725,6 +749,7 @@ export default function ReportsPage() {
                 </tbody>
               </table>
             </div>
+            </>
           ) : (
             <div className="rounded-xl border border-dashed p-4 text-sm text-gray-500">
               No recent sales yet.

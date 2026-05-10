@@ -443,7 +443,50 @@ export default function PigGroupsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 overflow-x-auto rounded-xl border">
+                  {group.pigs.length === 0 ? (
+                    <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-gray-500 md:hidden">
+                      No pigs in this group yet.
+                    </div>
+                  ) : (
+                    <div className="mt-4 space-y-3 md:hidden">
+                      {group.pigs.map((pig) => (
+                        <div key={pig.id} className="rounded-xl border p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-base font-semibold text-gray-900">
+                                #{pig.tagNumber}
+                              </div>
+                              <div className="mt-1 text-sm text-gray-600">
+                                {pig.sex} - {pig.breed ?? "No breed"}
+                              </div>
+                            </div>
+                            <span className="rounded-full border px-3 py-1 text-xs font-medium text-gray-700">
+                              {pig.status}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                            <button
+                              className="min-h-11 rounded-xl border px-3 py-2 text-sm font-medium text-gray-900"
+                              onClick={() => router.push(`/pigs/${pig.id}`)}
+                              type="button"
+                            >
+                              Open
+                            </button>
+                            <button
+                              className="min-h-11 rounded-xl border px-3 py-2 text-sm font-medium text-gray-900"
+                              onClick={() => removePigFromGroup(group.id, pig.id)}
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-4 hidden overflow-x-auto rounded-xl border md:block">
                     <table className="min-w-[700px] w-full table-auto text-sm">
                       <thead>
                         <tr className="border-b">

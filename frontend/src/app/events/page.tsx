@@ -111,6 +111,24 @@ function SectionCard({
   );
 }
 
+function eventDetails(event: PigEvent) {
+  const details: string[] = [];
+
+  if (event.weightKg !== null) details.push(`Weight: ${event.weightKg} kg`);
+  if (event.medicine) details.push(`Medicine: ${event.medicine}`);
+  if (event.dose) details.push(`Dose: ${event.dose}`);
+  if (event.cost !== null) details.push(`Cost: KES ${event.cost.toLocaleString()}`);
+  if (event.boarId) details.push(`Boar ID: ${event.boarId}`);
+  if (event.pigletsBorn !== null) details.push(`Piglets Born: ${event.pigletsBorn}`);
+  if (event.stillBorn !== null) details.push(`Stillborn: ${event.stillBorn}`);
+  if (event.pregnancyCheckResult) {
+    details.push(`Result: ${pregnancyStatusLabel(event.pregnancyCheckResult)}`);
+  }
+  if (event.notes) details.push(`Notes: ${event.notes}`);
+
+  return details;
+}
+
 export default function EventsPage() {
   const router = useRouter();
 
@@ -294,7 +312,60 @@ export default function EventsPage() {
           title="Event History"
           subtitle={`${filteredEvents.length} event${filteredEvents.length === 1 ? "" : "s"} found`}
         >
-          <div className="overflow-x-auto">
+          {filteredEvents.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-6 text-center text-gray-500 md:hidden">
+              No events found for this filter.
+            </div>
+          ) : (
+            <div className="space-y-3 md:hidden">
+              {filteredEvents.map((event) => {
+                const details = eventDetails(event);
+
+                return (
+                  <div key={event.id} className="rounded-xl border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-base font-semibold text-gray-900">
+                          {eventLabel(event.type)}
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          Pig: {pigMap.get(event.pigId) ?? event.pigId}
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        {formatDateTime(event.eventDate)}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {details.length ? (
+                        details.map((detail) => (
+                          <span
+                            key={detail}
+                            className="rounded-full border px-3 py-1 text-xs text-gray-900"
+                          >
+                            {detail}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-gray-500">No details</span>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => router.push(`/pigs/${event.pigId}`)}
+                      className="mt-4 min-h-11 w-full rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                      type="button"
+                    >
+                      Open Pig
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-[1100px] w-full text-sm">
               <thead>
                 <tr className="border-b">
