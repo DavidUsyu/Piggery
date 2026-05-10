@@ -221,8 +221,46 @@ export class PigsService {
       throw new NotFoundException('Pig not found');
     }
 
-    await this.prisma.pig.delete({
-      where: { id: pigId },
+    await this.prisma.$transaction(async (tx) => {
+      const relatedEvents = await tx.pigEvent.findMany({
+        where: {
+          farmId,
+          OR: [{ pigId }, { boarId: pigId }],
+        },
+        select: { id: true },
+      });
+
+      const relatedEventIds = relatedEvents.map((event) => event.id);
+
+      await tx.expense.deleteMany({
+        where: {
+          farmId,
+          OR: [
+            { pigId },
+            ...(relatedEventIds.length
+              ? [{ eventId: { in: relatedEventIds } }]
+              : []),
+          ],
+        },
+      });
+
+      await tx.sale.deleteMany({
+        where: {
+          farmId,
+          pigId,
+        },
+      });
+
+      await tx.pigEvent.deleteMany({
+        where: {
+          farmId,
+          boarId: pigId,
+        },
+      });
+
+      await tx.pig.delete({
+        where: { id: pigId },
+      });
     });
   }
 
