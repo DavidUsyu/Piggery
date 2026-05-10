@@ -1,8 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PigEvent } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateBulkEventDto } from './dto/create-bulk-event.dto';
+import { UpdateBulkEventsDto } from './dto/update-bulk-events.dto';
 
 @Injectable()
 export class EventsService {
@@ -256,6 +261,73 @@ export class EventsService {
       },
       orderBy: { eventDate: 'desc' },
     });
+  }
+
+  async bulkUpdate(farmId: string, dto: UpdateBulkEventsDto) {
+    const eventIds = [...new Set(dto.eventIds)];
+
+    if (!eventIds.length) {
+      throw new BadRequestException('Select at least one event to update');
+    }
+
+    const events = await this.prisma.pigEvent.findMany({
+      where: {
+        farmId,
+        id: { in: eventIds },
+      },
+    });
+
+    if (events.length !== eventIds.length) {
+      throw new NotFoundException('One or more bulk event records were not found');
+    }
+
+    const eventDate = dto.eventDate ? new Date(dto.eventDate) : undefined;
+    const totalSharedCost = typeof dto.cost === 'number' ? dto.cost : null;
+    const perPigCost =
+      totalSharedCost !== null
+        ? Number((totalSharedCost / eventIds.length).toFixed(2))
+        : null;
+
+    const updatedEvents = await this.prisma.$transaction(async (tx) => {
+      const results: PigEvent[] = [];
+
+      for (const event of events) {
+        const updated = await tx.pigEvent.update({
+          where: { id: event.id },
+          data: {
+            type: dto.type as any,
+            eventDate: eventDate ?? event.eventDate,
+            medicine: dto.medicine ?? null,
+            dose: dto.dose ?? null,
+            cost: perPigCost,
+            notes:
+              dto.notes ||
+              (totalSharedCost !== null
+                ? `Bulk ${dto.type.toLowerCase()} event. Shared total cost KES ${totalSharedCost} across ${eventIds.length} pig(s).`
+                : undefined),
+          },
+        });
+
+        if (dto.type === 'SALE') {
+          await tx.pig.update({
+            where: { id: updated.pigId },
+            data: { status: 'SOLD' },
+          });
+        }
+
+        await this.syncFinanceForEvent(tx, farmId, updated);
+        results.push(updated);
+      }
+
+      return results;
+    });
+
+    return {
+      message: `Bulk event updated for ${updatedEvents.length} pigs`,
+      count: updatedEvents.length,
+      totalSharedCost,
+      perPigCost,
+    };
   }
 
   async update(farmId: string, eventId: string, dto: CreateEventDto) {

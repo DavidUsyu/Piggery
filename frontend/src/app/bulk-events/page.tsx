@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiGet, apiPost, hasClientAuthState } from "@/lib/api";
+import { apiGet, apiPatch, apiPost, hasClientAuthState } from "@/lib/api";
+import { formatDateTime } from "@/lib/dates";
 
 type Pig = {
   id: string;
@@ -20,6 +21,18 @@ type PigGroup = {
   pigs: Pig[];
 };
 
+type PigEvent = {
+  id: string;
+  pigId: string;
+  type: string;
+  eventDate: string;
+  medicine: string | null;
+  dose: string | null;
+  cost: number | null;
+  notes: string | null;
+  createdAt: string;
+};
+
 type BulkEventForm = {
   type: string;
   pigGroupId: string;
@@ -28,6 +41,27 @@ type BulkEventForm = {
   medicine: string;
   dose: string;
   cost: string;
+  notes: string;
+};
+
+type BulkEditForm = {
+  type: string;
+  eventDate: string;
+  medicine: string;
+  dose: string;
+  cost: string;
+  notes: string;
+};
+
+type BulkEventBatch = {
+  key: string;
+  eventIds: string[];
+  pigIds: string[];
+  type: string;
+  eventDate: string;
+  medicine: string;
+  dose: string;
+  cost: number | null;
   notes: string;
 };
 
@@ -121,20 +155,44 @@ function costHelper(type: string) {
   return "";
 }
 
+function toDateTimeInput(value: string | Date | null | undefined) {
+  const date = value ? new Date(value) : new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toISOString().slice(0, 16);
+  }
+
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+}
+
 export default function BulkEventsPage() {
   const router = useRouter();
 
   const [pigs, setPigs] = useState<Pig[]>([]);
   const [groups, setGroups] = useState<PigGroup[]>([]);
+  const [events, setEvents] = useState<PigEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [editingBatch, setEditingBatch] = useState<BulkEventBatch | null>(null);
 
   const [form, setForm] = useState<BulkEventForm>({
     type: "DEWORMING",
     pigGroupId: "",
     pigIds: [],
+    eventDate: new Date().toISOString().slice(0, 16),
+    medicine: "",
+    dose: "",
+    cost: "",
+    notes: "",
+  });
+
+  const [editForm, setEditForm] = useState<BulkEditForm>({
+    type: "DEWORMING",
     eventDate: new Date().toISOString().slice(0, 16),
     medicine: "",
     dose: "",
@@ -156,13 +214,15 @@ export default function BulkEventsPage() {
       setLoading(true);
       setError(null);
 
-      const [pigsData, groupsData] = await Promise.all([
+      const [pigsData, groupsData, eventsData] = await Promise.all([
         apiGet<Pig[]>("/pigs"),
         apiGet<PigGroup[]>("/pig-groups"),
+        apiGet<PigEvent[]>("/events"),
       ]);
 
       setPigs(pigsData.filter((pig) => pig.status === "ACTIVE"));
       setGroups(groupsData);
+      setEvents(eventsData);
     } catch (err: any) {
       setError(err?.message ?? "Failed to load bulk event data");
     } finally {
@@ -197,6 +257,56 @@ export default function BulkEventsPage() {
   const availablePigs = useMemo(() => {
     return activePigs.filter((pig) => !groupedPigIds.has(pig.id));
   }, [activePigs, groupedPigIds]);
+
+  const pigById = useMemo(() => {
+    return new Map(activePigs.map((pig) => [pig.id, pig]));
+  }, [activePigs]);
+
+  const recentBulkEvents = useMemo(() => {
+    const groupsByEvent = new Map<string, BulkEventBatch>();
+
+    for (const event of events) {
+      const eventDay = new Date(event.eventDate).toISOString();
+      const createdAt = new Date(event.createdAt).toISOString();
+      const key = [
+        event.type,
+        eventDay,
+        createdAt,
+        event.medicine ?? "",
+        event.dose ?? "",
+        event.cost ?? "",
+        event.notes ?? "",
+      ].join("|");
+
+      const existing = groupsByEvent.get(key);
+
+      if (existing) {
+        existing.eventIds.push(event.id);
+        existing.pigIds.push(event.pigId);
+        continue;
+      }
+
+      groupsByEvent.set(key, {
+        key,
+        eventIds: [event.id],
+        pigIds: [event.pigId],
+        type: event.type,
+        eventDate: event.eventDate,
+        medicine: event.medicine ?? "",
+        dose: event.dose ?? "",
+        cost: event.cost,
+        notes: event.notes ?? "",
+      });
+    }
+
+    return Array.from(groupsByEvent.values())
+      .filter((batch) => batch.eventIds.length > 1)
+      .sort(
+        (a, b) =>
+          new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime(),
+      )
+      .slice(0, 20);
+  }, [events]);
 
   function togglePig(pigId: string) {
     setForm((prev) => ({
@@ -252,11 +362,68 @@ export default function BulkEventsPage() {
       );
 
       resetForm();
+      setEditingBatch(null);
       await loadData();
     } catch (err: any) {
       setError(err?.message ?? "Failed to create bulk event");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function startEditingBatch(batch: BulkEventBatch) {
+    setError(null);
+    setMessage("");
+    setEditingBatch(batch);
+    setEditForm({
+      type: batch.type,
+      eventDate: toDateTimeInput(batch.eventDate),
+      medicine: batch.medicine,
+      dose: batch.dose,
+      cost:
+        batch.cost !== null
+          ? Number((batch.cost * batch.eventIds.length).toFixed(2)).toString()
+          : "",
+      notes: batch.notes,
+    });
+  }
+
+  async function submitBulkEventUpdate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!editingBatch) return;
+
+    try {
+      setUpdating(true);
+      setError(null);
+      setMessage("");
+
+      const payload: any = {
+        eventIds: editingBatch.eventIds,
+        type: editForm.type,
+        eventDate: editForm.eventDate || undefined,
+        medicine: showMedicineFields(editForm.type) ? editForm.medicine || null : null,
+        dose: showMedicineFields(editForm.type) ? editForm.dose || null : null,
+        cost: showCostField(editForm.type)
+          ? editForm.cost
+            ? Number(editForm.cost)
+            : null
+          : null,
+        notes: editForm.notes || null,
+      };
+
+      const result = await apiPatch<any>("/events/bulk", payload);
+
+      setMessage(
+        result?.message ??
+          `Bulk ${eventLabel(editForm.type).toLowerCase()} updated successfully.`,
+      );
+      setEditingBatch(null);
+      await loadData();
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to update bulk event");
+    } finally {
+      setUpdating(false);
     }
   }
 
@@ -549,6 +716,211 @@ export default function BulkEventsPage() {
               </button>
             </div>
           </form>
+        </SectionCard>
+
+        <SectionCard
+          title="Edit Bulk Events"
+          subtitle="Update recent bulk event batches without editing each pig one by one."
+        >
+          {recentBulkEvents.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-6 text-sm text-gray-500">
+              No editable bulk event batches found yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentBulkEvents.map((batch) => {
+                const isEditing = editingBatch?.key === batch.key;
+                const totalCost =
+                  batch.cost !== null
+                    ? Number((batch.cost * batch.eventIds.length).toFixed(2))
+                    : null;
+                const pigLabels = batch.pigIds
+                  .map((pigId) => pigById.get(pigId)?.tagNumber ?? "Unknown")
+                  .join(", ");
+
+                return (
+                  <div key={batch.key} className="rounded-2xl border p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="text-base font-semibold text-gray-900">
+                          {eventLabel(batch.type)}
+                        </div>
+                        <div className="mt-1 text-sm text-gray-600">
+                          {formatDateTime(batch.eventDate)} • {batch.eventIds.length} pig(s)
+                        </div>
+                        <div className="mt-2 text-sm text-gray-700">
+                          {pigLabels}
+                        </div>
+                        {totalCost !== null ? (
+                          <div className="mt-2 text-sm text-gray-600">
+                            Total shared cost: KES {totalCost.toLocaleString()}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          isEditing ? setEditingBatch(null) : startEditingBatch(batch)
+                        }
+                        className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
+                      >
+                        {isEditing ? "Cancel" : "Edit"}
+                      </button>
+                    </div>
+
+                    {isEditing ? (
+                      <form onSubmit={submitBulkEventUpdate} className="mt-5 space-y-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                              Event Type
+                            </label>
+                            <select
+                              value={editForm.type}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  type: e.target.value,
+                                  dose:
+                                    e.target.value === "IRON_INJECTION"
+                                      ? "2ml"
+                                      : prev.dose,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                            >
+                              {EVENT_TYPES.map((type) => (
+                                <option key={type} value={type}>
+                                  {eventLabel(type)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                              Date and Time
+                            </label>
+                            <input
+                              type="datetime-local"
+                              value={editForm.eventDate}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  eventDate: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-4 py-3 text-gray-900"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {showMedicineFields(editForm.type) && (
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div>
+                              <label className="mb-1 block text-sm font-medium text-gray-700">
+                                Medicine
+                              </label>
+                              <input
+                                type="text"
+                                value={editForm.medicine}
+                                onChange={(e) =>
+                                  setEditForm((prev) => ({
+                                    ...prev,
+                                    medicine: e.target.value,
+                                  }))
+                                }
+                                className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="mb-1 block text-sm font-medium text-gray-700">
+                                Dose
+                              </label>
+                              <input
+                                type="text"
+                                value={editForm.dose}
+                                onChange={(e) =>
+                                  setEditForm((prev) => ({
+                                    ...prev,
+                                    dose: e.target.value,
+                                  }))
+                                }
+                                className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {showCostField(editForm.type) && (
+                          <div>
+                            <label className="mb-1 block text-sm font-medium text-gray-700">
+                              {editForm.type === "SALE"
+                                ? "Total Sale Amount"
+                                : "Total Shared Cost"}
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editForm.cost}
+                              onChange={(e) =>
+                                setEditForm((prev) => ({
+                                  ...prev,
+                                  cost: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                              {costHelper(editForm.type)}
+                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-gray-700">
+                            Notes
+                          </label>
+                          <textarea
+                            value={editForm.notes}
+                            onChange={(e) =>
+                              setEditForm((prev) => ({
+                                ...prev,
+                                notes: e.target.value,
+                              }))
+                            }
+                            className="min-h-[100px] w-full rounded-xl border px-4 py-3 text-gray-900 placeholder:text-gray-500"
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            type="submit"
+                            disabled={updating}
+                            className="rounded-xl bg-black px-4 py-3 font-medium text-white disabled:opacity-60"
+                          >
+                            {updating ? "Updating..." : "Update Bulk Event"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setEditingBatch(null)}
+                            className="rounded-xl border px-4 py-3 font-medium text-gray-900"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </SectionCard>
       </div>
     </div>

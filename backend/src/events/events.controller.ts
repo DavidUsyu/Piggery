@@ -15,6 +15,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { FARM_WRITE_ROLES, Roles } from '../auth/roles.decorator';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateBulkEventDto } from './dto/create-bulk-event.dto';
+import { UpdateBulkEventsDto } from './dto/update-bulk-events.dto';
 import { EventsService } from './events.service';
 
 @Controller('events')
@@ -37,6 +38,12 @@ export class EventsController {
   @Get()
   list(@Req() req: any, @Query('pigId') pigId?: string) {
     return this.eventsService.list(req.user.farmId, pigId);
+  }
+
+  @Patch('bulk')
+  @Roles(...FARM_WRITE_ROLES)
+  bulkUpdate(@Req() req: any, @Body() dto: UpdateBulkEventsDto) {
+    return this.eventsService.bulkUpdate(req.user.farmId, dto);
   }
 
   @Patch(':id')
