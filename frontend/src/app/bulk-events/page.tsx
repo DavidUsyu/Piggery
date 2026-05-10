@@ -267,11 +267,9 @@ export default function BulkEventsPage() {
 
     for (const event of events) {
       const eventDay = new Date(event.eventDate).toISOString();
-      const createdAt = new Date(event.createdAt).toISOString();
       const key = [
         event.type,
         eventDay,
-        createdAt,
         event.medicine ?? "",
         event.dose ?? "",
         event.cost ?? "",
