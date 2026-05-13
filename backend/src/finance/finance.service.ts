@@ -374,4 +374,89 @@ export class FinanceService {
         netProfit > 0 ? 'PROFIT' : netProfit < 0 ? 'LOSS' : 'BREAK_EVEN',
     };
   }
+
+  async pigProfits(farmId: string) {
+    const [pigs, salesByPig, expensesByPig] = await Promise.all([
+      this.prisma.pig.findMany({
+        where: { farmId },
+        select: {
+          id: true,
+          tagNumber: true,
+          name: true,
+          status: true,
+        },
+        orderBy: { tagNumber: 'asc' },
+      }),
+      this.prisma.sale.groupBy({
+        by: ['pigId'],
+        where: {
+          farmId,
+          pigId: { not: null },
+        },
+        _sum: { totalAmount: true },
+        _count: true,
+      }),
+      this.prisma.expense.groupBy({
+        by: ['pigId'],
+        where: {
+          farmId,
+          pigId: { not: null },
+        },
+        _sum: { amount: true },
+        _count: true,
+      }),
+    ]);
+
+    const salesMap = new Map(
+      salesByPig
+        .filter((item) => item.pigId)
+        .map((item) => [
+          item.pigId!,
+          {
+            totalRevenue: item._sum.totalAmount ?? 0,
+            saleCount: item._count,
+          },
+        ]),
+    );
+
+    const expensesMap = new Map(
+      expensesByPig
+        .filter((item) => item.pigId)
+        .map((item) => [
+          item.pigId!,
+          {
+            totalExpenses: item._sum.amount ?? 0,
+            expenseCount: item._count,
+          },
+        ]),
+    );
+
+    return pigs
+      .map((pig) => {
+        const sales = salesMap.get(pig.id);
+        const expenses = expensesMap.get(pig.id);
+        const totalRevenue = sales?.totalRevenue ?? 0;
+        const totalExpenses = expenses?.totalExpenses ?? 0;
+        const netProfit = totalRevenue - totalExpenses;
+
+        return {
+          pigId: pig.id,
+          tagNumber: pig.tagNumber,
+          name: pig.name,
+          pigStatus: pig.status,
+          totalRevenue,
+          totalExpenses,
+          netProfit,
+          saleCount: sales?.saleCount ?? 0,
+          expenseCount: expenses?.expenseCount ?? 0,
+          profitStatus:
+            netProfit > 0
+              ? 'PROFIT'
+              : netProfit < 0
+                ? 'LOSS'
+                : 'BREAK_EVEN',
+        };
+      })
+      .sort((a, b) => b.netProfit - a.netProfit);
+  }
 }

@@ -47,6 +47,18 @@ type Expense = {
   } | null;
 };
 
+type PigProfit = {
+  pigId: string;
+  tagNumber: string;
+  name: string | null;
+  pigStatus: string;
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  saleCount: number;
+  expenseCount: number;
+  profitStatus: "PROFIT" | "LOSS" | "BREAK_EVEN";
+};
 
 const EXPENSE_CATEGORIES = [
   "FEED",
@@ -94,6 +106,7 @@ export default function FinancePage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [pigs, setPigs] = useState<Pig[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [pigProfits, setPigProfits] = useState<PigProfit[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingSale, setSubmittingSale] = useState(false);
   const [submittingExpense, setSubmittingExpense] = useState(false);
@@ -122,15 +135,17 @@ export default function FinancePage() {
       setLoading(true);
       setError(null);
 
-      const [summaryData, pigsData, expensesData] = await Promise.all([
+      const [summaryData, pigsData, expensesData, pigProfitsData] = await Promise.all([
         apiGet<Summary>("/finance/summary"),
         apiGet<Pig[]>("/pigs"),
         apiGet<Expense[]>("/finance/expenses"),
+        apiGet<PigProfit[]>("/finance/pigs/profit"),
       ]);
 
       setSummary(summaryData);
       setPigs(pigsData);
       setExpenses(expensesData);
+      setPigProfits(pigProfitsData);
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -244,6 +259,13 @@ export default function FinancePage() {
     [pigs],
   );
 
+  const soldPigProfits = useMemo(
+    () => pigProfits.filter((pig) => pig.saleCount > 0),
+    [pigProfits],
+  );
+
+  const topPigProfit = useMemo(() => soldPigProfits[0] ?? null, [soldPigProfits]);
+
   if (loading) {
     return <div className="p-6">Loading finance...</div>;
   }
@@ -280,7 +302,7 @@ export default function FinancePage() {
 
         {summary && (
           <div data-tour="finance-summary-section">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <SummaryCard
                 label="Total Revenue"
                 value={`KES ${summary.totalRevenue.toLocaleString()}`}
@@ -303,6 +325,19 @@ export default function FinancePage() {
                   topExpense
                     ? `KES ${topExpense.amount.toLocaleString()}`
                     : "Record expenses to see this"
+                }
+              />
+              <SummaryCard
+                label="Best Pig Profit"
+                value={
+                  topPigProfit
+                    ? `KES ${topPigProfit.netProfit.toLocaleString()}`
+                    : "No sales"
+                }
+                helper={
+                  topPigProfit
+                    ? `Pig #${topPigProfit.tagNumber}`
+                    : "Record pig sales to see this"
                 }
               />
             </div>
@@ -680,6 +715,125 @@ export default function FinancePage() {
             </div>
           </section>
         </div>
+
+        <section className="rounded-2xl border bg-white p-5 shadow-sm">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Profit by Pig</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Revenue minus pig-specific expenses for each sold pig.
+            </p>
+          </div>
+
+          {soldPigProfits.length === 0 ? (
+            <div className="mt-4 rounded-xl border border-dashed p-6 text-center text-gray-500 md:hidden">
+              No pig sales recorded yet.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3 md:hidden">
+              {soldPigProfits.map((pig) => (
+                <div key={pig.pigId} className="rounded-xl border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-base font-semibold text-gray-900">
+                        #{pig.tagNumber}
+                      </div>
+                      <div className="mt-1 text-sm text-gray-600">
+                        {pig.name ?? "No name"} - {pig.pigStatus}
+                      </div>
+                    </div>
+                    <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                      {pig.profitStatus}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 text-sm text-gray-700">
+                    <div>Revenue: KES {pig.totalRevenue.toLocaleString()}</div>
+                    <div>Expenses: KES {pig.totalExpenses.toLocaleString()}</div>
+                    <div className="font-semibold text-gray-900">
+                      Profit: KES {pig.netProfit.toLocaleString()}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/pigs/${pig.pigId}`)}
+                    className="mt-4 min-h-11 w-full rounded-xl border px-4 py-2 text-sm font-medium text-gray-900"
+                  >
+                    Open Pig
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 hidden overflow-x-auto md:block">
+            <table className="min-w-[900px] w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Pig
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Revenue
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Expenses
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Profit
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Status
+                  </th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-700">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {soldPigProfits.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-gray-500">
+                      No pig sales recorded yet.
+                    </td>
+                  </tr>
+                ) : (
+                  soldPigProfits.map((pig) => (
+                    <tr key={pig.pigId} className="border-b">
+                      <td className="px-3 py-3 text-gray-900">
+                        #{pig.tagNumber}
+                        {pig.name ? ` - ${pig.name}` : ""}
+                      </td>
+                      <td className="px-3 py-3 text-gray-900">
+                        KES {pig.totalRevenue.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3 text-gray-900">
+                        KES {pig.totalExpenses.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3 font-semibold text-gray-900">
+                        KES {pig.netProfit.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="rounded-full border px-3 py-1 text-xs text-gray-900">
+                          {pig.profitStatus}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/pigs/${pig.pigId}`)}
+                          className="rounded-xl border px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white"
+                        >
+                          Open Pig
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section className="rounded-2xl border bg-white p-5 shadow-sm">
           <div>

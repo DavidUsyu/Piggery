@@ -38,6 +38,11 @@ export class FinanceController {
     return this.financeService.pigProfit(req.user.farmId, pigId);
   }
 
+  @Get('pigs/profit')
+  pigProfits(@Req() req: any) {
+    return this.financeService.pigProfits(req.user.farmId);
+  }
+
   @Post('sales')
   @Roles(...FARM_ADMIN_ROLES)
   createSale(@Req() req: any, @Body() dto: CreateSaleDto) {
