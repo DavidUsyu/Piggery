@@ -174,6 +174,13 @@ export class EventsService {
         });
       }
 
+      if (dto.type === 'ABORTION') {
+        await tx.pig.update({
+          where: { id: dto.pigId },
+          data: { pregnancyStatus: 'NOT_PREGNANT' },
+        });
+      }
+
       if (dto.type === 'SALE') {
         await tx.pig.update({
           where: { id: dto.pigId },
@@ -240,6 +247,14 @@ export class EventsService {
         });
 
         await this.syncFinanceForEvent(tx, farmId, created);
+
+        if (dto.type === 'ABORTION') {
+          await tx.pig.update({
+            where: { id: pigId },
+            data: { pregnancyStatus: 'NOT_PREGNANT' },
+          });
+        }
+
         createdEvents.push(created);
       }
 
@@ -316,6 +331,13 @@ export class EventsService {
           });
         }
 
+        if (dto.type === 'ABORTION') {
+          await tx.pig.update({
+            where: { id: updated.pigId },
+            data: { pregnancyStatus: 'NOT_PREGNANT' },
+          });
+        }
+
         await this.syncFinanceForEvent(tx, farmId, updated);
         results.push(updated);
       }
@@ -380,6 +402,13 @@ export class EventsService {
       }
 
       if (dto.type === 'FARROWING') {
+        await tx.pig.update({
+          where: { id: updated.pigId },
+          data: { pregnancyStatus: 'NOT_PREGNANT' },
+        });
+      }
+
+      if (dto.type === 'ABORTION') {
         await tx.pig.update({
           where: { id: updated.pigId },
           data: { pregnancyStatus: 'NOT_PREGNANT' },

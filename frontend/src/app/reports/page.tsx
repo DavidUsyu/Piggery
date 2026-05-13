@@ -772,6 +772,7 @@ function formatEventType(type: string) {
   if (type === "IRON_INJECTION") return "Iron Injection";
   if (type === "BREEDING") return "Breeding";
   if (type === "PREGNANCY_CHECK") return "Pregnancy Check";
+  if (type === "ABORTION") return "Abortion";
   if (type === "FARROWING") return "Farrowing";
   if (type === "WEANING") return "Weaning";
   if (type === "TREATMENT") return "Treatment";

@@ -74,6 +74,7 @@ const EVENT_TYPES = [
   "TAIL_DOCKING",
   "CASTRATION",
   "IRON_INJECTION",
+  "ABORTION",
   "TREATMENT",
   "SALE",
   "NOTE",
@@ -126,6 +127,7 @@ function eventLabel(type: string) {
   if (type === "TAIL_DOCKING") return "Tail Docking";
   if (type === "CASTRATION") return "Castration";
   if (type === "IRON_INJECTION") return "Iron Injection";
+  if (type === "ABORTION") return "Abortion";
   if (type === "TREATMENT") return "Treatment";
   if (type === "SALE") return "Sale";
   if (type === "NOTE") return "Note";

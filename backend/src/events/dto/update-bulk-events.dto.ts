@@ -24,6 +24,7 @@ export class UpdateBulkEventsDto {
     'TAIL_DOCKING',
     'CASTRATION',
     'IRON_INJECTION',
+    'ABORTION',
     'WEANING',
     'TREATMENT',
     'SALE',

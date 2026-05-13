@@ -24,6 +24,7 @@ export class CreateEventDto {
     'IRON_INJECTION',
     'BREEDING',
     'PREGNANCY_CHECK',
+    'ABORTION',
     'FARROWING',
     'WEANING',
     'ILLNESS',

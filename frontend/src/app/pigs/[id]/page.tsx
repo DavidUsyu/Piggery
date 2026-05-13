@@ -169,6 +169,11 @@ const ACTION_CONFIG: Record<
     emoji: "PC",
     helper: "Record the pregnancy check result",
   },
+  ABORTION: {
+    label: "Abortion",
+    emoji: "AB",
+    helper: "Record an abortion and mark this pig as not pregnant",
+  },
   FARROWING: {
     label: "Farrowing",
     emoji: "FR",
@@ -204,6 +209,7 @@ function eventLabel(type: string) {
   if (type === "IRON_INJECTION") return "Iron Injection";
   if (type === "BREEDING") return "Breeding";
   if (type === "PREGNANCY_CHECK") return "Pregnancy Check";
+  if (type === "ABORTION") return "Abortion";
   if (type === "FARROWING") return "Farrowing";
   if (type === "WEANING") return "Weaning";
   if (type === "ILLNESS") return "Illness";
@@ -409,7 +415,13 @@ export default function PigProfilePage() {
       "SALE",
     ];
     const maleOnly = ["CASTRATION"];
-    const femaleOnly = ["BREEDING", "PREGNANCY_CHECK", "FARROWING", "WEANING"];
+    const femaleOnly = [
+      "BREEDING",
+      "PREGNANCY_CHECK",
+      "ABORTION",
+      "FARROWING",
+      "WEANING",
+    ];
     return timeline.sex === "FEMALE"
       ? [...common, ...femaleOnly]
       : [...common, ...maleOnly];
@@ -430,7 +442,13 @@ export default function PigProfilePage() {
       "NOTE",
     ];
     const maleOnly = ["CASTRATION"];
-    const femaleOnly = ["BREEDING", "PREGNANCY_CHECK", "FARROWING", "WEANING"];
+    const femaleOnly = [
+      "BREEDING",
+      "PREGNANCY_CHECK",
+      "ABORTION",
+      "FARROWING",
+      "WEANING",
+    ];
     return timeline.sex === "FEMALE" ? [...base, ...femaleOnly] : [...base, ...maleOnly];
   }, [timeline]);
 

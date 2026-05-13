@@ -28,6 +28,7 @@ export class CreateBulkEventDto {
     'TAIL_DOCKING',
     'CASTRATION',
     'IRON_INJECTION',
+    'ABORTION',
     'WEANING',
     'TREATMENT',
     'SALE',
