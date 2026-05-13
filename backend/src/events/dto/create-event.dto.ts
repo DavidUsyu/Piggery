@@ -17,6 +17,7 @@ export class CreateEventDto {
     'WEIGHT',
     'VACCINATION',
     'DEWORMING',
+    'TRANSPORT',
     'TEETH_CLIPPING',
     'TAIL_DOCKING',
     'CASTRATION',

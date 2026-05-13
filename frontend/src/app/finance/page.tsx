@@ -49,6 +49,7 @@ type Expense = {
 
 const EXPENSE_CATEGORIES = [
   "FEED",
+  "TRANSPORT",
   "LABOR",
   "UTILITIES",
   "MAINTENANCE",

@@ -19,6 +19,7 @@ export class UpdateBulkEventsDto {
     'WEIGHT',
     'VACCINATION',
     'DEWORMING',
+    'TRANSPORT',
     'TEETH_CLIPPING',
     'TAIL_DOCKING',
     'CASTRATION',

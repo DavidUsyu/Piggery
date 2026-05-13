@@ -13,12 +13,13 @@ import { UpdateBulkEventsDto } from './dto/update-bulk-events.dto';
 export class EventsService {
   constructor(private prisma: PrismaService) {}
 
-  private getExpenseCategoryFromEventType(type: string): 'MEDICINE' | null {
+  private getExpenseCategoryFromEventType(type: string): 'MEDICINE' | 'TRANSPORT' | null {
     if (type === 'VACCINATION') return 'MEDICINE';
     if (type === 'DEWORMING') return 'MEDICINE';
     if (type === 'TREATMENT') return 'MEDICINE';
     if (type === 'IRON_INJECTION') return 'MEDICINE';
     if (type === 'CASTRATION') return 'MEDICINE';
+    if (type === 'TRANSPORT') return 'TRANSPORT';
     return null;
   }
 

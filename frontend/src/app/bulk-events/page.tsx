@@ -69,6 +69,7 @@ const EVENT_TYPES = [
   "WEIGHT",
   "VACCINATION",
   "DEWORMING",
+  "TRANSPORT",
   "TEETH_CLIPPING",
   "TAIL_DOCKING",
   "CASTRATION",
@@ -120,6 +121,7 @@ function eventLabel(type: string) {
   if (type === "WEIGHT") return "Weight";
   if (type === "VACCINATION") return "Vaccination";
   if (type === "DEWORMING") return "Deworming";
+  if (type === "TRANSPORT") return "Transport";
   if (type === "TEETH_CLIPPING") return "Teeth Clipping";
   if (type === "TAIL_DOCKING") return "Tail Docking";
   if (type === "CASTRATION") return "Castration";
@@ -138,6 +140,7 @@ function showCostField(type: string) {
   return [
     "VACCINATION",
     "DEWORMING",
+    "TRANSPORT",
     "TREATMENT",
     "IRON_INJECTION",
     "CASTRATION",
@@ -149,7 +152,7 @@ function costHelper(type: string) {
   if (type === "SALE") {
     return "For bulk sale, this is treated as total shared amount and will be split across selected pigs.";
   }
-  if (["VACCINATION", "DEWORMING", "TREATMENT", "IRON_INJECTION", "CASTRATION"].includes(type)) {
+  if (["VACCINATION", "DEWORMING", "TRANSPORT", "TREATMENT", "IRON_INJECTION", "CASTRATION"].includes(type)) {
     return "For bulk events, this is treated as total shared cost and will be split across selected pigs.";
   }
   return "";

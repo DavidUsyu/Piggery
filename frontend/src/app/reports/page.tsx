@@ -765,6 +765,7 @@ function formatEventType(type: string) {
   if (type === "WEIGHT") return "Weight";
   if (type === "VACCINATION") return "Vaccination";
   if (type === "DEWORMING") return "Deworming";
+  if (type === "TRANSPORT") return "Transport";
   if (type === "TEETH_CLIPPING") return "Teeth Clipping";
   if (type === "TAIL_DOCKING") return "Tail Docking";
   if (type === "CASTRATION") return "Castration";

@@ -113,6 +113,12 @@ const ACTION_CONFIG: Record<
     helper: "Record deworming and auto-sync the cost to finance",
     costLabel: "Deworming Cost",
   },
+  TRANSPORT: {
+    label: "Transport",
+    emoji: "TR",
+    helper: "Record transport and auto-sync the cost to finance",
+    costLabel: "Transport Cost",
+  },
   TEETH_CLIPPING: {
     label: "Teeth Clipping",
     emoji: "TC",
@@ -191,6 +197,7 @@ function eventLabel(type: string) {
   if (type === "WEIGHT") return "Weight";
   if (type === "VACCINATION") return "Vaccination";
   if (type === "DEWORMING") return "Deworming";
+  if (type === "TRANSPORT") return "Transport";
   if (type === "TEETH_CLIPPING") return "Teeth Clipping";
   if (type === "TAIL_DOCKING") return "Tail Docking";
   if (type === "CASTRATION") return "Castration";
@@ -274,6 +281,7 @@ function showCostField(type: string) {
   return [
     "VACCINATION",
     "DEWORMING",
+    "TRANSPORT",
     "TREATMENT",
     "IRON_INJECTION",
     "CASTRATION",
@@ -392,6 +400,7 @@ export default function PigProfilePage() {
     const common = [
       "WEIGHT",
       "DEWORMING",
+      "TRANSPORT",
       "TEETH_CLIPPING",
       "TAIL_DOCKING",
       "IRON_INJECTION",
@@ -411,6 +420,7 @@ export default function PigProfilePage() {
     const base = [
       "WEIGHT",
       "DEWORMING",
+      "TRANSPORT",
       "TEETH_CLIPPING",
       "TAIL_DOCKING",
       "IRON_INJECTION",

@@ -1,0 +1,1 @@
+ALTER TYPE "PigEventType" ADD VALUE 'TRANSPORT';
