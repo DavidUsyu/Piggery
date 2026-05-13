@@ -10,23 +10,86 @@ export class FinanceService {
   constructor(private prisma: PrismaService) {}
 
   async createSale(farmId: string, dto: CreateSaleDto) {
-    if (dto.pigId) {
-      const pig = await this.prisma.pig.findFirst({
-        where: { id: dto.pigId, farmId },
+    const selectedPigIds = [
+      ...new Set(dto.pigIds?.length ? dto.pigIds : dto.pigId ? [dto.pigId] : []),
+    ];
+
+    if (selectedPigIds.length) {
+      const pigs = await this.prisma.pig.findMany({
+        where: {
+          id: { in: selectedPigIds },
+          farmId,
+        },
       });
 
-      if (!pig) {
-        throw new NotFoundException('Pig not found');
+      if (pigs.length !== selectedPigIds.length) {
+        throw new NotFoundException('One or more selected pigs were not found');
       }
     }
 
     const quantity = dto.quantity ?? 1;
     const totalAmount = quantity * dto.unitPrice;
 
+    if (selectedPigIds.length > 1) {
+      const saleDate = dto.saleDate ? new Date(dto.saleDate) : new Date();
+
+      const sales = await this.prisma.$transaction(async (tx) => {
+        const createdSales: unknown[] = [];
+
+        for (const pigId of selectedPigIds) {
+          const sale = await tx.sale.create({
+            data: {
+              farmId,
+              pigId,
+              quantity: 1,
+              unitPrice: dto.unitPrice,
+              totalAmount: dto.unitPrice,
+              saleDate,
+              buyerName: dto.buyerName,
+              notes: dto.notes,
+            },
+            include: {
+              pig: true,
+            },
+          });
+
+          await tx.pigEvent.create({
+            data: {
+              farmId,
+              pigId,
+              type: 'SALE',
+              eventDate: saleDate,
+              cost: dto.unitPrice,
+              notes:
+                dto.notes ??
+                `Pig sold to ${dto.buyerName ?? 'buyer'} for ${dto.unitPrice}`,
+            },
+          });
+
+          await tx.pig.update({
+            where: { id: pigId },
+            data: { status: 'SOLD' },
+          });
+
+          createdSales.push(sale);
+        }
+
+        return createdSales;
+      });
+
+      return {
+        message: `Sale recorded for ${sales.length} pigs`,
+        count: sales.length,
+        sales,
+      };
+    }
+
+    const pigId = selectedPigIds[0];
+
     const sale = await this.prisma.sale.create({
       data: {
         farmId,
-        pigId: dto.pigId,
+        pigId,
         quantity,
         unitPrice: dto.unitPrice,
         totalAmount,
@@ -39,11 +102,11 @@ export class FinanceService {
       },
     });
 
-    if (dto.pigId) {
+    if (pigId) {
       await this.prisma.pigEvent.create({
         data: {
           farmId,
-          pigId: dto.pigId,
+          pigId,
           type: 'SALE',
           eventDate: dto.saleDate ? new Date(dto.saleDate) : new Date(),
           cost: totalAmount,
@@ -54,7 +117,7 @@ export class FinanceService {
       });
 
       await this.prisma.pig.update({
-        where: { id: dto.pigId },
+        where: { id: pigId },
         data: { status: 'SOLD' },
       });
     }

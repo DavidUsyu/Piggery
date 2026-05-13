@@ -9,6 +9,7 @@ type Pig = {
   id: string;
   tagNumber: string;
   name: string | null;
+  status: string;
 };
 
 type Summary = {
@@ -99,7 +100,7 @@ export default function FinancePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [saleForm, setSaleForm] = useState({
-    pigId: "",
+    pigIds: [] as string[],
     quantity: 1,
     unitPrice: "",
     saleDate: "",
@@ -158,8 +159,8 @@ export default function FinancePage() {
       setError(null);
 
       await apiPost("/finance/sales", {
-        pigId: saleForm.pigId || undefined,
-        quantity: Number(saleForm.quantity),
+        pigIds: saleForm.pigIds.length ? saleForm.pigIds : undefined,
+        quantity: saleForm.pigIds.length ? undefined : Number(saleForm.quantity),
         unitPrice: Number(saleForm.unitPrice),
         saleDate: saleForm.saleDate || undefined,
         buyerName: saleForm.buyerName || undefined,
@@ -167,7 +168,7 @@ export default function FinancePage() {
       });
 
       setSaleForm({
-        pigId: "",
+        pigIds: [],
         quantity: 1,
         unitPrice: "",
         saleDate: "",
@@ -185,6 +186,15 @@ export default function FinancePage() {
     } finally {
       setSubmittingSale(false);
     }
+  }
+
+  function toggleSalePig(pigId: string) {
+    setSaleForm((prev) => ({
+      ...prev,
+      pigIds: prev.pigIds.includes(pigId)
+        ? prev.pigIds.filter((id) => id !== pigId)
+        : [...prev.pigIds, pigId],
+    }));
   }
 
   async function handleCreateExpense(e: React.FormEvent<HTMLFormElement>) {
@@ -228,6 +238,11 @@ export default function FinancePage() {
     if (!summary?.expenseBreakdown?.length) return null;
     return [...summary.expenseBreakdown].sort((a, b) => b.amount - a.amount)[0];
   }, [summary]);
+
+  const salePigs = useMemo(
+    () => pigs.filter((pig) => pig.status === "ACTIVE"),
+    [pigs],
+  );
 
   if (loading) {
     return <div className="p-6">Loading finance...</div>;
@@ -306,23 +321,33 @@ export default function FinancePage() {
             <form onSubmit={handleCreateSale} className="mt-5 space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Pig
+                  Pigs Sold
                 </label>
-                <select
-                  value={saleForm.pigId}
-                  onChange={(e) =>
-                    setSaleForm((prev) => ({ ...prev, pigId: e.target.value }))
-                  }
-                  className="w-full rounded-xl border px-3 py-3 text-gray-900"
-                >
-                  <option value="">Select pig (optional)</option>
-                  {pigs.map((pig) => (
-                    <option key={pig.id} value={pig.id}>
-                      {pig.tagNumber}
-                      {pig.name ? ` - ${pig.name}` : ""}
-                    </option>
-                  ))}
-                </select>
+                <div className="max-h-[260px] space-y-2 overflow-y-auto rounded-xl border p-3">
+                  {salePigs.length === 0 ? (
+                    <div className="text-sm text-gray-500">No pigs available.</div>
+                  ) : (
+                    salePigs.map((pig) => (
+                      <label
+                        key={pig.id}
+                        className="flex items-center gap-3 rounded-xl border p-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={saleForm.pigIds.includes(pig.id)}
+                          onChange={() => toggleSalePig(pig.id)}
+                        />
+                        <span className="text-sm text-gray-900">
+                          {pig.tagNumber}
+                          {pig.name ? ` - ${pig.name}` : ""}
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select multiple pigs to record one sale per pig. Leave empty for a general sale.
+                </p>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -341,12 +366,18 @@ export default function FinancePage() {
                       }))
                     }
                     className="w-full rounded-xl border px-3 py-3 text-gray-900 placeholder:text-gray-500"
+                    disabled={saleForm.pigIds.length > 0}
                   />
+                  {saleForm.pigIds.length > 0 ? (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Quantity is set from selected pigs: {saleForm.pigIds.length}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Unit Price
+                    {saleForm.pigIds.length > 1 ? "Price Per Pig" : "Unit Price"}
                   </label>
                   <input
                     type="number"

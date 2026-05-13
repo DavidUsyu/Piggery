@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
+  IsArray,
   IsDateString,
   IsInt,
   IsNumber,
@@ -12,6 +13,11 @@ export class CreateSaleDto {
   @IsOptional()
   @IsString()
   pigId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  pigIds?: string[];
 
   @IsOptional()
   @IsInt()
