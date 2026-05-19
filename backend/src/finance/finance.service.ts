@@ -13,25 +13,22 @@ export class FinanceService {
     const selectedPigIds = [
       ...new Set(dto.pigIds?.length ? dto.pigIds : dto.pigId ? [dto.pigId] : []),
     ];
+    const saleDate = dto.saleDate ? new Date(dto.saleDate) : new Date();
 
     if (selectedPigIds.length) {
       const pigs = await this.prisma.pig.findMany({
         where: {
           id: { in: selectedPigIds },
           farmId,
+          status: 'ACTIVE',
         },
       });
 
       if (pigs.length !== selectedPigIds.length) {
-        throw new NotFoundException('One or more selected pigs were not found');
+        throw new NotFoundException(
+          'One or more selected pigs were not found or are no longer active',
+        );
       }
-    }
-
-    const quantity = dto.quantity ?? 1;
-    const totalAmount = quantity * dto.unitPrice;
-
-    if (selectedPigIds.length > 1) {
-      const saleDate = dto.saleDate ? new Date(dto.saleDate) : new Date();
 
       const sales = await this.prisma.$transaction(async (tx) => {
         const createdSales: unknown[] = [];
@@ -68,7 +65,7 @@ export class FinanceService {
 
           await tx.pig.update({
             where: { id: pigId },
-            data: { status: 'SOLD' },
+            data: { status: 'SOLD', pigGroupId: null },
           });
 
           createdSales.push(sale);
@@ -84,16 +81,16 @@ export class FinanceService {
       };
     }
 
-    const pigId = selectedPigIds[0];
+    const quantity = dto.quantity ?? 1;
+    const totalAmount = quantity * dto.unitPrice;
 
-    const sale = await this.prisma.sale.create({
+    return this.prisma.sale.create({
       data: {
         farmId,
-        pigId,
         quantity,
         unitPrice: dto.unitPrice,
         totalAmount,
-        saleDate: dto.saleDate ? new Date(dto.saleDate) : new Date(),
+        saleDate,
         buyerName: dto.buyerName,
         notes: dto.notes,
       },
@@ -101,28 +98,6 @@ export class FinanceService {
         pig: true,
       },
     });
-
-    if (pigId) {
-      await this.prisma.pigEvent.create({
-        data: {
-          farmId,
-          pigId,
-          type: 'SALE',
-          eventDate: dto.saleDate ? new Date(dto.saleDate) : new Date(),
-          cost: totalAmount,
-          notes:
-            dto.notes ??
-            `Pig sold to ${dto.buyerName ?? 'buyer'} for ${totalAmount}`,
-        },
-      });
-
-      await this.prisma.pig.update({
-        where: { id: pigId },
-        data: { status: 'SOLD' },
-      });
-    }
-
-    return sale;
   }
 
   async listSales(farmId: string) {

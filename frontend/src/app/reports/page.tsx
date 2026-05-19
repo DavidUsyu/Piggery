@@ -331,10 +331,14 @@ export default function ReportsPage() {
   }, [events]);
 
   const expenseBreakdownData = useMemo(() => {
-    return finance?.expenseBreakdown?.map((item) => ({
-      name: item.category,
-      amount: item.amount,
-    })) ?? [];
+    return (
+      finance?.expenseBreakdown
+        ?.map((item) => ({
+          name: formatExpenseCategory(item.category),
+          amount: item.amount,
+        }))
+        .sort((a, b) => b.amount - a.amount) ?? []
+    );
   }, [finance]);
 
   const monthlyExpenseData = useMemo(() => {
@@ -391,6 +395,9 @@ export default function ReportsPage() {
   const topEventType = useMemo(() => {
     return eventTypeChartData.length > 0 ? eventTypeChartData[0] : null;
   }, [eventTypeChartData]);
+
+  const eventActivityChartHeight = Math.max(320, eventTypeChartData.length * 34);
+  const expenseBreakdownChartHeight = Math.max(320, expenseBreakdownData.length * 40);
 
   if (loading) {
     return <div className="p-6">Loading reports...</div>;
@@ -591,19 +598,28 @@ export default function ReportsPage() {
             title="Event Activity"
             subtitle="See which types of events are most common."
           >
-            <div className="h-80">
+            <div className="max-h-96 overflow-y-auto pr-2">
               {eventTypeChartData.length === 0 ? (
-                <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
+                <div className="flex h-80 items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
                   No event data yet.
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={eventTypeChartData}>
+                <ResponsiveContainer width="100%" height={eventActivityChartHeight}>
+                  <BarChart
+                    data={eventTypeChartData}
+                    layout="vertical"
+                    margin={{ top: 8, right: 24, left: 32, bottom: 8 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="count" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={128}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip formatter={(value) => [value, "Records"]} />
+                    <Bar dataKey="count" name="Records" fill="#2563eb" />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -614,19 +630,36 @@ export default function ReportsPage() {
             title="Expense Breakdown"
             subtitle="Compare farm costs by category."
           >
-            <div className="h-80">
+            <div className="max-h-96 overflow-y-auto pr-2">
               {expenseBreakdownData.length === 0 ? (
-                <div className="flex h-full items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
+                <div className="flex h-80 items-center justify-center rounded-xl border border-dashed text-sm text-gray-500">
                   No expense data yet.
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={expenseBreakdownData}>
+                <ResponsiveContainer width="100%" height={expenseBreakdownChartHeight}>
+                  <BarChart
+                    data={expenseBreakdownData}
+                    layout="vertical"
+                    margin={{ top: 8, right: 24, left: 32, bottom: 8 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="amount" />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(value) => `KES ${Number(value).toLocaleString()}`}
+                    />
+                    <YAxis
+                      dataKey="name"
+                      type="category"
+                      width={112}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [
+                        `KES ${Number(value).toLocaleString()}`,
+                        "Amount",
+                      ]}
+                    />
+                    <Bar dataKey="amount" name="Amount" fill="#16a34a" />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -781,4 +814,12 @@ function formatEventType(type: string) {
   if (type === "DEATH") return "Death";
   if (type === "CONSUMED") return "Consumed";
   return type;
+}
+
+function formatExpenseCategory(category: string) {
+  return category
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }

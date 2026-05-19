@@ -184,7 +184,7 @@ export class EventsService {
       if (dto.type === 'SALE') {
         await tx.pig.update({
           where: { id: dto.pigId },
-          data: { status: 'SOLD' },
+          data: { status: 'SOLD', pigGroupId: null },
         });
       }
 
@@ -327,7 +327,7 @@ export class EventsService {
         if (dto.type === 'SALE') {
           await tx.pig.update({
             where: { id: updated.pigId },
-            data: { status: 'SOLD' },
+            data: { status: 'SOLD', pigGroupId: null },
           });
         }
 
@@ -418,7 +418,7 @@ export class EventsService {
       if (dto.type === 'SALE') {
         await tx.pig.update({
           where: { id: updated.pigId },
-          data: { status: 'SOLD' },
+          data: { status: 'SOLD', pigGroupId: null },
         });
       }
 
